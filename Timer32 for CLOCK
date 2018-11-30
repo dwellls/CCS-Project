@@ -4,37 +4,15 @@
 #define RW BIT1 //4.1 pin
 #define EN BIT2 //4.2 pin
 //prototypes for all used functions
-/*
- * Sequence the enable pin and turns R and RW to 1
- * Clears lower and upper nibbles
- */
+
 void LCD_nibble_write(unsigned char data, unsigned char control);
-/*
- * command writes one byte of command
- *
- */
 void LCD_command(unsigned char command);
-/*
- * data writes one byte of data with paramters
- *
- */
 void LCD_data(unsigned char data);
-/*
- * Intiazies the LCD Screen sequence
- */
 void LCD_init(void);
-/*
- * Intializes the systimic timer
- */
 void SysTick_Init(void);
-/*
- * A millisecond systimic timer function.
- */
-void SysTick_delayMS(uint16_t delay); //
-/*
-*Declare the strings that will be put in the data pins
-* The strings will be printed on the LCD screen in the middle of the 4 lines
-*/
+void SysTick_delayMS(uint16_t delay); 
+
+
 char Str1[] = "Time"; 
 char second[60];
 char minute[60];
@@ -183,9 +161,7 @@ void LCD_init(void)
     LCD_command(0x01);      /* clear screen, move cursor to home */
     LCD_command(0x0F);      /* turn on display, cursor blinking */
 }
-/* With 4-bit mode, each command or data is sent twice with upper
- * nibble first then lower nibble.
- */
+
 void LCD_nibble_write(unsigned char data, unsigned char control)
  {
     data &= 0xF0;           /* clear lower nibble for control */
