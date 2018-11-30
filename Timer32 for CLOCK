@@ -169,7 +169,7 @@ int main(void)
 }
 void LCD_init(void)
 {
-    P5->DIR = 0xFF;     /* make P4 pins output for data and controls */
+    P4->DIR = 0xFF;     /* make P4 pins output for data and controls */
     SysTick_delayMS(30);                /* initialization sequence */
     LCD_nibble_write(0x30, 0);
     SysTick_delayMS(10);
