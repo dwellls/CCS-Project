@@ -9,24 +9,20 @@
  * Clears lower and upper nibbles
  */
 void LCD_nibble_write(unsigned char data, unsigned char control);
-void LCD_nibble_write2(int data, int control);
 /*
  * command writes one byte of command
  *
  */
 void LCD_command(unsigned char command);
-void LCD_command2(int command);
 /*
  * data writes one byte of data with paramters
  *
  */
 void LCD_data(unsigned char data);
-void LCD_data2(int data);
 /*
  * Intiazies the LCD Screen sequence
  */
 void LCD_init(void);
-void LCD_init2(void);
 /*
  * Intializes the systimic timer
  */
@@ -39,7 +35,7 @@ void SysTick_delayMS(uint16_t delay); //
 *Declare the strings that will be put in the data pins
 * The strings will be printed on the LCD screen in the middle of the 4 lines
 */
-char Str1[] = "Time"; //The string for Connor
+char Str1[] = "Time"; 
 char second[60];
 char minute[60];
 char hour[60];
@@ -55,7 +51,6 @@ int main(void)
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
     SysTick_Init(); //function to initialize systic time
     LCD_init();
-    LCD_init2();
     int j,i; // this j is used for the increments of the for loops to print the strings
     TIMER32_1->LOAD = 3000000-1;    /* set the reload value */
     /* no prescaler, periodic wrapping mode, disable interrupt, 32-bit timer. */
@@ -65,7 +60,7 @@ int main(void)
         LCD_command(0x85);  /* set cursor at beginning of first line */
          for(j=0; j<4;j++)
          {
-              LCD_data(Str1[j]);      /* write the word "Connor" */
+              LCD_data(Str1[j]);    
            }
 
 
@@ -214,54 +209,6 @@ void LCD_data(unsigned char data)
 {
     LCD_nibble_write(data & 0xF0, RS);    /* upper nibble first */
     LCD_nibble_write(data << 4, RS);      /* then lower nibble  */
-    SysTick_delayMS(1);
-}
-
-
-
-
-void LCD_init2(void)
-{
-    P5->DIR = 0xFF;     /* make P4 pins output for data and controls */
-    SysTick_delayMS(30);                /* initialization sequence */
-    LCD_nibble_write2(0x30, 0);
-    SysTick_delayMS(10);
-    LCD_nibble_write2(0x30, 0);
-    SysTick_delayMS(1);
-    LCD_nibble_write2(0x30, 0);
-    SysTick_delayMS(1);
-    LCD_nibble_write2(0x20, 0);  /* use 4-bit data mode */
-    SysTick_delayMS(1);
-    LCD_command2(0x28);      /* set 4-bit data, 2-line, 5x7 font */
-    LCD_command2(0x01);      /* clear screen, move cursor to home */
-    LCD_command2(0x0F);      /* turn on display, cursor blinking */
-}
-/* With 4-bit mode, each command or data is sent twice with upper
- * nibble first then lower nibble.
- */
-void LCD_nibble_write2(int data, int control)
- {
-    data &= 0xF0;           /* clear lower nibble for control */
-    control &= 0x0F;        /* clear upper nibble for data */
-    P5->OUT = data | control;       /* RS = 0, R/W = 0 */
-    P5->OUT = data | control | EN;  /* pulse E */
-    SysTick_delayMS(10);
-    P5->OUT = data;                 /* clear E */
-    P5->OUT = 0;
-}
-void LCD_command2(int command)
-{
-    LCD_nibble_write2(command & 0xF0, 0);    /* upper nibble first */
-    LCD_nibble_write2(command << 4, 0);      /* then lower nibble */
-    if (command < 4)
-        SysTick_delayMS(4);         /* commands 1 and 2 need up to 1.64ms */
-    else
-        SysTick_delayMS(1);         /* all others 40 us */
-}
-void LCD_data2(int data)
-{
-    LCD_nibble_write2(data & 0xF0, RS);    /* upper nibble first */
-    LCD_nibble_write2(data << 4, RS);      /* then lower nibble  */
     SysTick_delayMS(1);
 }
 
