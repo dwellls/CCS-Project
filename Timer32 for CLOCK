@@ -166,11 +166,11 @@ void LCD_nibble_write(unsigned char data, unsigned char control)
  {
     data &= 0xF0;           /* clear lower nibble for control */
     control &= 0x0F;        /* clear upper nibble for data */
-    P5->OUT = data | control;       /* RS = 0, R/W = 0 */
-    P5->OUT = data | control | EN;  /* pulse E */
+    P4->OUT = data | control;       /* RS = 0, R/W = 0 */
+    P4->OUT = data | control | EN;  /* pulse E */
     SysTick_delayMS(10);
-    P5->OUT = data;                 /* clear E */
-    P5->OUT = 0;
+    P4->OUT = data;                 /* clear E */
+    P4->OUT = 0;
 }
 void LCD_command(unsigned char command)
 {
