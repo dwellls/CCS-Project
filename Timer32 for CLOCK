@@ -1,8 +1,8 @@
 #include "msp.h"
 #include <stdio.h>
-#define RS BIT0 //5.0 pin
-#define RW BIT1 //5.1 pin
-#define EN BIT2 //5.2 pin
+#define RS BIT0 //4.0 pin
+#define RW BIT1 //4.1 pin
+#define EN BIT2 //4.2 pin
 //prototypes for all used functions
 /*
  * Sequence the enable pin and turns R and RW to 1
@@ -49,8 +49,7 @@ int numhour = 1;
 int isec = 0;
 int imin = 0;
 int ihour = 0;
-//char Str3[] = "EGR";
-//char Str4[] = "226";
+
 int main(void)
 {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
@@ -265,14 +264,6 @@ void LCD_data2(int data)
     LCD_nibble_write2(data << 4, RS);      /* then lower nibble  */
     SysTick_delayMS(1);
 }
-
-
-
-
-
-
-
-
 
 
 void SysTick_Init(void)
