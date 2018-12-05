@@ -1,0 +1,699 @@
+#include "msp.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#define RS BIT0 
+#define RW BIT1 
+#define EN BIT2 
+
+
+#define BUFFER_SIZE 100
+char INPUT_BUFFER[BUFFER_SIZE];
+int size12 =0;
+int AM_PM = 0;                          // initializing the starting position of used buffer and read buffer
+uint8_t storage_location = 0;           // used in the interrupt to store new data
+uint8_t read_location = 0;              // used in the main application to read valid data that hasn't been read yet
+void writeOutput(char *string);         // write output charactrs to the serial port
+int readInput(char* string, int size12);// read input characters from INPUT_BUFFER that are valid
+void setupP1();                         // Sets up P1.0 as an output to drive the on board LED
+void setupSerial();                     // Sets up serial for use and enables interrupts
+int TERATERM_TO_LCDTIME(int hourtime, int AM_PM);
+int LCD_to_Military(int k, int d);      //k is pm or am state d is hour int
+void int_to_arrayTIME( char hourarray, char minarray, char secarray, int h, int m, int sec);
+void int_to_arrayAlarm( char hourarray, char minarray, int h, int m);
+char finalarray[100];
+
+
+
+
+
+
+
+void LCD_nibble_write(unsigned char data, unsigned char control);
+void LCD_command(unsigned char command);
+void LCD_data(unsigned char data);
+void LCD_init(void);
+void SysTick_Init(void);
+void SysTick_delayMS(uint16_t delay); 
+char Str1[] = "Time"; 
+char second[60];
+char minute[60];
+char hour[60];
+int numsec = 0;
+int nummin =0;
+int numhour = 1;
+int isec = 0;
+int imin = 0;
+int ihour = 0;
+volatile uint32_t  flag;
+
+int main(void)
+{
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
+    SysTick_Init(); //function to initialize systic time
+    LCD_init();
+    int j,i; 
+    TIMER32_1->LOAD = 3000000-1;    
+   
+    TIMER32_1->CONTROL = 0xC2;
+
+    char string[BUFFER_SIZE]; // Creates local char array to store incoming serial commands
+    int Stringsize;
+    //char Settime[20];
+    char hrt[2];
+    char mint[2];
+    char sect[2];
+    int hourint;
+    int minint;
+    int secint;
+    //char Alarm[] = "08:47";
+    //char Time[] = "02:40:38";
+    //char Setalarm[20];
+    char hra[2];
+    char mina[2];
+    //char seca[2];
+    int hourinta ;
+    int mininta ;
+    //int secinta;
+    WDT_A->CTL = WDT_A_CTL_PW |  WDT_A_CTL_HOLD; // Stop watchdog timer
+    setupP1();
+    setupSerial();
+    INPUT_BUFFER[0]= '\0';  // Sets the global buffer to initial condition of empty
+    __enable_irq();  // Enable all interrupts (serial)
+
+
+
+    while(1)
+    {
+        LCD_command(0x85);  /* set cursor at beginning of first line */
+         for(j=0; j<4;j++)
+         {
+              LCD_data(Str1[j]);      
+           }
+
+        //LCD_command(1);     /* clear display */
+              //SysTick_delayMS(500);
+        if(numsec>=60)
+        {
+            numsec = 0;
+            second[0] = '0';
+            second[1] = '0';
+            isec=0;
+            nummin = nummin + 1; //update mintues
+        }
+        if(numsec>=10)
+        {
+            isec=2;
+        }
+        if(nummin>=60)
+        {
+            nummin = 0;
+            minute[0] = '0';
+            minute[1] = '0';
+            imin=0;
+            numhour = numhour + 1; //update hours
+        }
+        if(nummin>=10)
+        {
+            imin=2; //So the zero is not placed
+        }
+        if(numhour > 12)
+        {
+            numhour=1;
+            ihour = 0;
+            //change PM to AM
+        }
+        if(numhour>=10)
+        {
+            ihour = 2;
+        }
+
+               LCD_command(0xC0);
+               sprintf(hour,"%d", numhour); //copy the value of the temp into the string
+               if(ihour==0)
+               {
+                   LCD_data(hour[0]);
+               }
+               else if(ihour ==2)
+               {
+                   for(i=0; i<2 ; i++)
+                   {
+                       LCD_data(hour[i]);
+                       printf("hour");
+                   }
+               }
+               LCD_command(0xC2);
+               LCD_data(':');
+               LCD_command(0xC3);
+               sprintf(minute,"%d", nummin); //copy the value of the temp into the string
+               if(imin==0)
+               {
+                   LCD_data('0');
+                   LCD_command(0xC4);
+                   LCD_data(minute[0]);
+               }
+               else if(imin==2)
+               {
+                   for(i=0; i<2 ; i++)
+                   {
+                       LCD_data(minute[i]);
+                       printf("min");
+                   }
+               }
+
+                 LCD_command(0xC6);  /* set cursor at beginning of 2nd line */
+                 LCD_data(':'); //Displays secound
+                 LCD_command(0xC7);
+                 sprintf(second,"%d", numsec); //copy the value of the temp into the string
+                 if(isec==0)
+                 {
+                     LCD_data('0');
+                     LCD_command(0xC8);
+                     LCD_data(second[0]);
+                 }
+                 else if(isec==2)
+                 {
+                     for(i=0; i<2 ; i++)
+                     {
+                         LCD_data(second[i]);
+                         //printf("2 digits\n");
+                     }
+                 }
+                 numsec= numsec + 1;
+
+                 while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
+                        TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
+                        //printf("delay\n");
+                        printf("%d\n", numsec);
+
+
+
+
+                        if(INPUT_BUFFER[read_location] == 'S' || INPUT_BUFFER[read_location] == 'R' )
+                        {
+                            printf("Enter was pressed go into loop\n");
+                        Stringsize= readInput(string, size12); // this variable is equal to the length of the string that was typed in tera term
+                              printf("\n%d\n", Stringsize); //here to see if the length was right
+                             // if(Stringsize >= 6) // If the string was longer than 4 characters then it would be invalid based on the requirments. Enter button was a character
+                         // {
+                             // writeOutput("INVALID ");
+                              //writeOutput(string); //Send back the invalid string to thetera term console
+                             // }
+                             // printf("%s\n",string);
+                              if(string[6] == 'E' && Stringsize ==17)
+                              {
+                                  printf("Normal time\n");
+                                 // printf("%c\n",string[8]);
+                                  //strncpy(hrt, string, 10);
+                                  hrt[0] = string[8];
+                                  hrt[1] = string[9];
+                                  hourint = atoi(hrt);
+                                  hourint=TERATERM_TO_LCDTIME(hourint, AM_PM);
+                                  mint[0]= string[11];
+                                  mint[1]= string[12];
+                                  minint = atoi(mint);
+                                  sect[0] = string[14];
+                                  sect[1] = string[15];
+                                  secint = atoi(sect);
+                                 // printf("%s\n",hrt);
+                                  printf("%d\n", hourint); //int value
+                                  numhour = hourint;
+                                 // printf("%s\n",mint);
+                                   printf("%d\n", minint);//int value
+                                   nummin = minint;
+                                   //printf("%s\n",sect);
+                                    printf("%d\n", secint); //int value for
+                                    numsec = secint;
+                                    printf("%d\n", AM_PM);
+                                    if(AM_PM ==0)
+                                    {
+                                        printf("AM\n");
+                                    }
+                                    else if(AM_PM ==1 )
+                                    {
+                                        printf("PM\n");
+                                    }
+
+                              }
+                              if(!(strcmp(string,"READTIME")))
+                              {
+                                  hourint = LCD_to_Military(AM_PM, hourint);
+                                  printf("%d\n", hourint);
+                                  printf("%d\n", minint);
+                                  printf("%d\n", secint);
+                                  if(AM_PM ==0)
+                                  {
+                                      printf("AM\n");
+                                  }
+                                  else if(AM_PM ==1 )
+                                  {
+                                      printf("PM\n");
+                                  }
+                                 // int_to_arrayTIME( hrt,  mint, sect, hourint, minint, secint);
+                                  sprintf(hrt,"%d",hourint); //copy the value of the temp into the string
+                                     if(hourint < 10)
+                                     {
+                                         finalarray[0] = '0';
+                                         //writeOutput(hourarray);
+                                         finalarray[1] = hrt[0];
+                                         finalarray[2]= ':';
+                                        /// printf("hour");
+                                     }
+                                     else if(hourint >= 10)
+                                     {
+                                         finalarray[0] = hrt[0];
+                                         finalarray[1] = hrt[1];
+                                         finalarray[2] = ':';
+                                     }
+                                     sprintf(mint, "%d", minint );
+                                     if(minint < 10)
+                                     {
+                                         finalarray[3] = '0';
+                                         finalarray[4]= mint[0];
+                                         finalarray[5] = ':';
+                                     }
+                                     else if(minint >= 10)
+                                     {
+                                         finalarray[3] = mint[0];
+                                         finalarray[4]= mint[1];
+                                         finalarray[5] = ':';
+                                     }
+                                     sprintf(sect, "%d", secint );
+                                     if(secint < 10)
+                                     {
+                                         finalarray[6] = '0';
+                                               finalarray[7]= sect[0];
+
+                                     }
+                                     else if(secint >= 10)
+                                     {
+                                         finalarray[6] = sect[0];
+                                                 finalarray[7]= sect[1];
+
+                                     }
+                                     writeOutput(finalarray);
+
+                              }
+
+                              if(string[7]== 'M' && Stringsize == 15)
+                              {
+                                  printf("Alarm Time\n");
+                                              hra[0] = string[9];
+                                              hra[1] = string[10];
+                                              hourinta = atoi(hra);
+
+                                              mina[0]= string[12];
+                                              mina[1]= string[13];
+                                              mininta = atoi(mina);
+
+                                              AM_PM = TERATERM_TO_LCDTIME2(hourinta, AM_PM);
+                                              hourinta=TERATERM_TO_LCDTIME(hourinta, AM_PM);
+                                              //seca[0] = string[15];
+                                              //seca[1] = string[16];
+                                              //secinta = atoi(seca);
+                                              //printf("%s\n",hra);
+                                              printf("%d\n", hourinta); //int value
+                                             // printf("%s\n",mina);
+                                               printf("%d\n", mininta);//int value
+                                               //printf("%s\n",seca);
+                                               // printf("%d\n", secinta); //int value for
+                                               if(AM_PM ==0)
+                                               {
+                                                   printf("AM\n");
+                                               }
+                                               else if(AM_PM ==1 )
+                                               {
+                                                   printf("PM\n");
+                                               }
+
+                              }
+                              if(!(strcmp(string,"READALARM")))
+                              {
+                                  sprintf(hra,"%d",hourinta); //copy the value of the temp into the string
+                                          if(hourinta< 10)
+                                          {
+                                              finalarray[0] = '0';
+                                              //writeOutput(hourarray);
+                                              finalarray[1] = hra[0];
+                                              finalarray[2]= ':';
+                                             /// printf("hour");
+                                          }
+                                          else if(hourinta >= 10)
+                                          {
+                                              finalarray[0] = hra[0];
+                                              finalarray[1] = hra[1];
+                                              finalarray[2] = ':';
+                                          }
+                                          sprintf(mina, "%d", mininta );
+                                          if(mininta < 10)
+                                          {
+                                              finalarray[3] = '0';
+                                              finalarray[4]= mina[0];
+                                              finalarray[5] = '\0';
+                                              finalarray[6] = '\0';
+
+                                          }
+                                          else if(mininta >= 10)
+                                          {
+                                              finalarray[3] = mina[0];
+                                              finalarray[4]= mina[1];
+                                              finalarray[5] = '\0';
+                                              finalarray[6] = '\0';
+                                          }
+
+                                  writeOutput(finalarray);
+                              }
+    }
+    }
+}
+void LCD_init(void)
+{
+    P5->DIR = 0xFF;     /* make P4 pins output for data and controls */
+    SysTick_delayMS(30);                /* initialization sequence */
+    LCD_nibble_write(0x30, 0);
+    SysTick_delayMS(10);
+    LCD_nibble_write(0x30, 0);
+    SysTick_delayMS(1);
+    LCD_nibble_write(0x30, 0);
+    SysTick_delayMS(1);
+    LCD_nibble_write(0x20, 0);  /* use 4-bit data mode */
+    SysTick_delayMS(1);
+    LCD_command(0x28);      /* set 4-bit data, 2-line, 5x7 font */
+    LCD_command(0x01);      /* clear screen, move cursor to home */
+    LCD_command(0x0F);      /* turn on display, cursor blinking */
+}
+
+void LCD_nibble_write(unsigned char data, unsigned char control)
+ {
+    data &= 0xF0;           /* clear lower nibble for control */
+    control &= 0x0F;        /* clear upper nibble for data */
+    P5->OUT = data | control;       /* RS = 0, R/W = 0 */
+    P5->OUT = data | control | EN;  /* pulse E */
+    SysTick_delayMS(10);
+    P5->OUT = data;                 /* clear E */
+    P5->OUT = 0;
+}
+void LCD_command(unsigned char command)
+{
+    LCD_nibble_write(command & 0xF0, 0);    /* upper nibble first */
+    LCD_nibble_write(command << 4, 0);      /* then lower nibble */
+    if (command < 4)
+        SysTick_delayMS(4);         /* commands 1 and 2 need up to 1.64ms */
+    else
+        SysTick_delayMS(1);         /* all others 40 us */
+}
+void LCD_data(unsigned char data)
+{
+    LCD_nibble_write(data & 0xF0, RS);    /* upper nibble first */
+    LCD_nibble_write(data << 4, RS);      /* then lower nibble  */
+    SysTick_delayMS(1);
+}
+
+
+
+
+
+/*----------------------------------------------------------------
+ * void writeOutput(char *string)
+ *
+ * Description:  This is a function similar to most serial port
+ * functions like printf.  Written as a demonstration and not
+ * production worthy due to limitations.
+ * One limitation is poor memory management.
+ * Inputs: Pointer to a string that has a string to send to the serial.
+ * Outputs: Places the data on the serial output.
+----------------------------------------------------------------*/
+void writeOutput(char *string)
+{
+    int i = 0;  // Location in the char array "string" that is being written to
+    while(string[i] != '\0') {
+        EUSCI_A0->TXBUF = string[i];
+        i++;
+        while(!(EUSCI_A0->IFG & BIT1));
+    }
+}
+/*----------------------------------------------------------------
+ * int readInput(char *string)
+ *
+ * Description:  This is a function similar to most serial port
+ * functions like ReadLine.  Written as a demonstration and not
+ * production worthy due to limitations.
+ * One of the limitations is that it is BLOCKING which means
+ * it will wait in this function until there is a \n on the
+ * serial input.
+ * Another limitation is poor memory management.
+ * Inputs: Pointer to a string that will have information stored
+ * in it.
+ * Outputs: Places the serial data in the string that was passed
+ * to it.  Updates the global variables of locations in the
+ * INPUT_BUFFER that have been already read.
+ * It returns the size of the string back to the main loop.
+----------------------------------------------------------------*/
+int readInput(char *string, int size12)
+{
+    int i = 0;  // Location in the char array "string" that is being written to
+    int j=0;
+    // One of the few do/while loops I've written, but need to read a character before checking to see if a \n has been read
+    do
+    {
+        // If a new line hasn't been found yet, but we are caught up to what has been received, wait here for new data
+        while(read_location == storage_location && INPUT_BUFFER[read_location] != '\n')
+            {
+            LCD_command(0x85);  /* set cursor at beginning of first line */
+                    for(j=0; j<4;j++)
+                    {
+                         LCD_data(Str1[j]);      
+                      }
+
+
+
+                   //LCD_command(1);     /* clear display */
+                         //SysTick_delayMS(500);
+                   if(numsec>=60)
+                   {
+                       numsec = 0;
+                       second[0] = '0';
+                       second[1] = '0';
+                       isec=0;
+                       nummin = nummin + 1; //update mintues
+                   }
+                   if(numsec>=10)
+                   {
+                       isec=2;
+                   }
+                   if(nummin>=60)
+                   {
+                       nummin = 0;
+                       minute[0] = '0';
+                       minute[1] = '0';
+                       imin=0;
+                       numhour = numhour + 1; //update hours
+                   }
+                   if(nummin>=10)
+                   {
+                       imin=2; //So the zero is not placed
+                   }
+                   if(numhour > 12)
+                   {
+                       numhour=1;
+                       ihour = 0;
+                       //change PM to AM
+                   }
+                   if(numhour>=10)
+                   {
+                       ihour = 2;
+                   }
+
+
+
+                          LCD_command(0xC0);
+                          sprintf(hour,"%d", numhour); //copy the value of the temp into the string
+                          if(ihour==0)
+                          {
+                              LCD_data(hour[0]);
+                          }
+                          else if(ihour ==2)
+                          {
+                              for(i=0; i<2 ; i++)
+                              {
+                                  LCD_data(hour[i]);
+                                  printf("hour");
+                              }
+                          }
+                          LCD_command(0xC2);
+                          LCD_data(':');
+                          LCD_command(0xC3);
+                          sprintf(minute,"%d", nummin); //copy the value of the temp into the string
+                          if(imin==0)
+                          {
+                              LCD_data('0');
+                              LCD_command(0xC4);
+                              LCD_data(minute[0]);
+                          }
+                          else if(imin==2)
+                          {
+                              for(i=0; i<2 ; i++)
+                              {
+                                  LCD_data(minute[i]);
+                                  printf("min");
+                              }
+                          }
+
+
+
+
+                            LCD_command(0xC6);  /* set cursor at beginning of 2nd line */
+                            LCD_data(':'); //Displays secound
+                            LCD_command(0xC7);
+                            sprintf(second,"%d", numsec); //copy the value of the temp into the string
+                            if(isec==0)
+                            {
+                                LCD_data('0');
+                                LCD_command(0xC8);
+                                LCD_data(second[0]);
+                            }
+                            else if(isec==2)
+                            {
+                                for(i=0; i<2 ; i++)
+                                {
+                                    LCD_data(second[i]);
+                                    //printf("2 digits\n");
+                                }
+                            }
+                            numsec= numsec + 1;
+
+                            while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
+                                   TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
+                                   //printf("delay\n");
+                                   printf("%d\n", numsec);
+            }
+        string[size12] = INPUT_BUFFER[read_location];  // Manual copy of valid character into "string"
+        INPUT_BUFFER[read_location] = '\0';
+        size12++; // Increment the location in "string" for next piece of data
+        read_location++; // Increment location in INPUT_BUFFER that has been read
+        if(read_location == BUFFER_SIZE)  // If the end of INPUT_BUFFER has been reached, loop back to 0
+            read_location = 0;
+    }
+    while(string[size12-1] != '\n'); // If a \n was just read, break out of the while loop
+    string[size12-1] = '\0'; // Replace the \n with a \0 to end the string when returning this function
+    return(size12); //return the size of the string back to the main where that inf can be used for if statments
+}
+/*----------------------------------------------------------------
+ * void EUSCIA0_IRQHandler(void)
+ *
+ * Description: Interrupt handler for serial communication on EUSCIA0.
+ * Stores the data in the RXBUF into the INPUT_BUFFER global character
+ * array for reading in the main application
+ * Inputs: None (Interrupt)
+ * Outputs: Data stored in the global INPUT_BUFFER. storage_location
+ * in the INPUT_BUFFER updated.
+----------------------------------------------------------------*/
+void EUSCIA0_IRQHandler(void)
+{
+    if (EUSCI_A0->IFG & BIT0)  // Interrupt on the receive line
+    {
+        INPUT_BUFFER[storage_location] = EUSCI_A0->RXBUF; // store the new piece of data at the present location in the buffer
+        EUSCI_A0->IFG &= ~BIT0; // Clear the interrupt flag right away in case new data is ready
+        storage_location++; // update to the next position in the buffer
+        if(storage_location == BUFFER_SIZE) // if the end of the buffer was reached, loop back to the start
+            storage_location = 0;
+    }
+}
+
+void setupP1()
+{
+    P1->SEL0 &= ~BIT0; //GPIO
+    P1->SEL1 &= ~BIT0;
+    P1->DIR  |=  BIT0; //OUTPUT
+    P1->OUT  &= ~BIT0; //Start as off
+}
+/*----------------------------------------------------------------
+ * void setupSerial()
+ * Sets up the serial port EUSCI_A0 as 115200 8E2 (8 bits, Even parity,
+ * two stops bit.)  Enables the interrupt so that received data will
+ * results in an interrupt.
+ * Description:
+ * Inputs: None
+ * Outputs: None
+----------------------------------------------------------------*/
+void setupSerial()
+{
+    P1->SEL0 |=  (BIT2 | BIT3); // P1.2 and P1.3 are EUSCI_A0 RX
+    P1->SEL1 &= ~(BIT2 | BIT3); // and TX respectively.
+    EUSCI_A0->CTLW0  = BIT0; // Disables EUSCI. Default configuration is 8N1
+    EUSCI_A0->CTLW0 |= BIT7; // Connects to SMCLK BIT[7:6] = 10
+    //EUSCI_A0->CTLW0 |= (BIT(15)|BIT(14)|BIT(11));  //BIT15 = Parity, BIT14 = Even, BIT11 = Two Stop Bits
+    //EUSCI_A0->CTLW0 &= ~(BIT(15)|BIT(14)|BIT(11));
+    // Baud Rate Configuration
+    // 3000000/(16*9600) = 312.5 (3 MHz at 115200 bps is fast enough to turn on over sampling (UCOS = /16))
+    EUSCI_A0->BRW = 19;  // UCBR Value from above
+    EUSCI_A0->MCTLW = 0x01181; //UCBRS (Bits 15-8) & UCBRF (Bits 7-4) & UCOS16 (Bit 0)
+    EUSCI_A0->CTLW0 &= ~BIT0;  // Enable EUSCI
+    EUSCI_A0->IFG &= ~BIT0; // Clear interrupt
+    EUSCI_A0->IE |= BIT0;   // Enable interrupt
+    NVIC_EnableIRQ(EUSCIA0_IRQn);
+}
+int TERATERM_TO_LCDTIME( int hourtime, int AM_PM)
+{
+    if(hourtime == 0 || hourtime== 24)
+    {
+        hourtime = 12;
+        AM_PM =0;
+    }
+    else if(hourtime>0 && hourtime <12)
+    {
+        AM_PM =0;
+    }
+    else if(hourtime == 12)
+    {
+        //PM state
+        AM_PM =1;
+    }
+    else if(hourtime > 12)
+    {
+        hourtime = hourtime - 12;
+        //PM state
+        //printf("AM_PM =1\n");
+    }
+    return(hourtime);
+}
+
+int LCD_to_Military(int k, int d) //k is pm or am state d is hour int
+{
+    if(k==0) // am state
+    {
+        if(d==0)
+        {
+            d =0;
+        }
+    }
+    else if(k==1)
+    {
+        if(d==12)
+        {
+            d=12;
+        }
+        else
+        {
+            d= d+12;
+        }
+    }
+    return(d);
+}
+
+
+void SysTick_Init(void)
+{
+    //Initialize systic timer
+    SysTick-> CTRL = 0;
+    SysTick-> LOAD = 0x00FFFFFF;
+    SysTick-> VAL = 0;
+    SysTick-> CTRL = 0x00000005;
+}
+void SysTick_delayMS(uint16_t delay)
+{
+    //systick delay function
+    SysTick->LOAD =((delay * 3000) - 1);       //delay for 1 msecond per delay value
+    SysTick->VAL = 0;                                                 // any write to CVR clears it
+    while((SysTick -> CTRL  &  0x00010000) == 0); // wait for flag to be SET
+}
