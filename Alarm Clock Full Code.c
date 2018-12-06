@@ -919,7 +919,8 @@ void main(void)
             while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
             TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
             LEDcount += 1;
-            
+	    }
+	    
 	    if (wakeup_light==1) //call wakeup light when timer is 5 minutes to alarm
 	    {
 		    LightCounter++;
