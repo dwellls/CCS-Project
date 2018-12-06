@@ -195,17 +195,37 @@ void SetupTimer32s()
 
 void green_LED_pins(void)
 {
-    P2 -> SEL0 &=~ BIT4; //sets GPIO
-    P2 -> SEL1 &=~ BIT4;
-    P2 -> DIR |= BIT4; //output
-    P2 -> OUT |= BIT4; //sets output
+    P5 -> SEL0 |= BIT6; //sets GPIO
+    P5 -> SEL1 &=~ BIT6;
+    P5 -> DIR |= BIT6; //output
+    
+    TIMER_A2->CCR[0] = (1000 - 1);                  //PWM period
+    TIMER_A2->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7;     //Reset/set
+    TIMER_A2->CCR[1] = 0;                           //Initial duty cycle
+
+    TIMER_A2->CTL = TIMER_A_CTL_TASSEL_2 |          //SMCLK
+                    TIMER_A_CTL_MC_1 |              //Up Mode
+                    TIMER_A_CTL_CLR;                //Clear TA0R Register
 }
 void green_LED_pins2(void)
 {
-    P2 -> SEL0 &=~ BIT5; //sets GPIO
-    P2 -> SEL1 &=~ BIT5;
-    P2 -> DIR |= BIT5; //output
-    P2 -> OUT |= BIT5; //sets output
+    P5 -> SEL0 |= BIT7; //sets GPIO
+    P5 -> SEL1 &=~ BIT7;
+    P5 -> DIR |= BIT7; //output
+    
+    TIMER_A2->CCR[0] = (1000 - 1);                  //PWM period
+    TIMER_A2->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7;     //Reset/set
+    TIMER_A2->CCR[2] = 0;                           //Initial duty cycle
+
+    TIMER_A2->CTL = TIMER_A_CTL_TASSEL_2 |          //SMCLK
+                    TIMER_A_CTL_MC_1 |              //Up Mode
+                    TIMER_A_CTL_CLR;                //Clear TA0R Register
+}
+
+void wakeup_lights(void)
+{
+    
+    
 }
 
 void TA_init(void)
