@@ -29,6 +29,9 @@
 #include "Alarm_Header.h"
 #include "stdio.h"
 
+int dutycycle = 0;
+int LightCounter = 0;
+int wakeup_light = 0;
 int RT = 0;
 int settime;
 int up = 0;
@@ -916,9 +919,26 @@ void main(void)
             while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
             TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
             LEDcount += 1;
-            }
+            
+	    if (wakeup_light==1) //call wakeup light when timer is 5 minutes to alarm
+	    {
+		    LightCounter++;
+		    
+		    if (LightCounter == 3 && dutycycle <= 1000)
+		    {
+			 dutycycle += 10;
+			 TIMER_A2->CCR[1] = dutycycle;      //Initial duty cycle
+			 TIMER_A2->CCR[2] = dutycyle;     //Initial duty cycle
+			 
+			 LightCouter = 0;   
+		    }
+		    
+		    //insert flag off button when pressed then the LEDs turn off and the sound off
+	    }
     }
 }
+	
+	
 
 
 /*
