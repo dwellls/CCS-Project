@@ -1,0 +1,24 @@
+#include "msp.h"
+
+
+void main(void)
+{
+	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
+	
+	
+}
+
+void green_LED_pins(void)
+{
+    P2 -> SEL0 &=~ BIT4; //sets GPIO
+    P2 -> SEL1 &=~ BIT4;
+    P2 -> DIR |= BIT4; //output
+    P2 -> OUT |= BIT4; //sets output
+}
+void green_LED_pins2(void)
+{
+    P2 -> SEL0 &=~ BIT5; //sets GPIO
+    P2 -> SEL1 &=~ BIT5;
+    P2 -> DIR |= BIT5; //output
+    P2 -> OUT |= BIT5; //sets output
+}
