@@ -35,6 +35,68 @@ int up = 0;
 int setcount = 0;
 int down = 0;
 int setalarm = 0;
+int on = 0;
+int length;
+int note = 0;       //The note in the music sequence we are on
+int breath = 0;     //Take a breath after each note.  This creates seperation
+float music_note_sequence[][2] = {  //Twinkle Twinkle
+                                 {C4,QUARTER},
+                                 {C4,QUARTER},
+                                 {G4,QUARTER},
+                                 {G4,QUARTER},
+
+                                 {A4,QUARTER},
+                                 {A4,QUARTER},
+                                 {G4,HALF},
+
+                                 {F4,QUARTER},
+                                 {F4,QUARTER},
+                                 {E4,QUARTER},
+                                 {E4,QUARTER},
+
+                                 {D4,QUARTER},
+                                 {D4,QUARTER},
+                                 {C4,HALF},
+
+                                 {G4,QUARTER},
+                                 {G4,QUARTER},
+                                 {F4,QUARTER},
+                                 {F4,QUARTER},
+
+                                 {E4,QUARTER},
+                                 {E4,QUARTER},
+                                 {D4,HALF},
+
+                                 {G4,QUARTER},
+                                 {G4,QUARTER},
+                                 {F4,QUARTER},
+                                 {F4,QUARTER},
+
+                                 {E4,QUARTER},
+                                 {E4,QUARTER},
+                                 {D4,HALF},
+
+                                 {C4,QUARTER},
+                                 {C4,QUARTER},
+                                 {G4,QUARTER},
+                                 {G4,QUARTER},
+
+                                 {A4,QUARTER},
+                                 {A4,QUARTER},
+                                 {G4,HALF},
+
+                                 {F4,QUARTER},
+                                 {F4,QUARTER},
+                                 {E4,QUARTER},
+                                 {E4,QUARTER},
+
+                                 {D4,QUARTER},
+                                 {D4,QUARTER},
+                                 {C4,HALF},
+
+                                 {REST,WHOLE},
+                                 {REST,WHOLE},
+};
 
 void main(void)
 {
@@ -47,6 +109,9 @@ void main(void)
     PortADC_init();
     SysTick_init_interrupt();
     LCD_init();
+    green_LED_pins();
+    green_LED_pins2();
+    TA_init();
 
 	//Enabling interupts and the vectors
     NVIC->ISER[1] = 1 <<((PORT6_IRQn) & 31);    //Enable Port 6 interrupt on the NVIC
@@ -61,6 +126,7 @@ void main(void)
     int anummin = 0;
     int anumhour = 12;
     int AP = 1;
+    int LEDcount = 0;
     int aAP = 1;
     TIMER32_1->LOAD=3000000-1;
     TIMER32_1->CONTROL=0xC2;
@@ -335,149 +401,224 @@ void main(void)
 
 
             }
-            if(setalarm == 1)
+            else
             {
-                if(setcount == 1)
+                if(setalarm == 1)
                 {
-                    if(up == 1)
+                    if(setcount == 1)
                     {
-                        anumhour += 1;
-                        up = 0;
-                        if(anumhour == 13)
+                        if(up == 1)
                         {
-                            anumhour = 1;
-                            if(aAP == 1)
+                            anumhour += 1;
+                            up = 0;
+                            if(anumhour == 13)
                             {
-                                aAP = 0;
-                            }
-                            else
-                            {
-                                aAP= 1;
+                                anumhour = 1;
+                                if(aAP == 1)
+                                {
+                                    aAP = 0;
+                                }
+                                else
+                                {
+                                    aAP= 1;
+                                }
                             }
                         }
-                    }
-                    else if(down == 1)
-                    {
-                        anumhour -= 1;
-                        down = 0;
-                        if(anumhour <= 0)
+                        else if(down == 1)
                         {
-                            anumhour = 12;
-                            if(aAP == 1)
-                            {
-                                aAP = 0;
-                            }
-                            else
-                            {
-                                aAP= 1;
-                            }
-                        }
-                    }
-                }
-                if(setcount == 2)
-                {
-                    if(up == 1)
-                    {
-                        anummin += 1;
-                        up = 0;
-                    }
-                    else if(down == 1)
-                    {
-                        anummin -= 1;
-                        down = 0;
-                        if(anummin < 0)
-                        {
-                            anummin = 59;
-                            if(anumhour == 1)
+                            anumhour -= 1;
+                            down = 0;
+                            if(anumhour <= 0)
                             {
                                 anumhour = 12;
-                            }
-                            else
-                            {
-                            anumhour -= 1;
+                                if(aAP == 1)
+                                {
+                                    aAP = 0;
+                                }
+                                else
+                                {
+                                    aAP= 1;
+                                }
                             }
                         }
                     }
-                }
-                if(setcount == 3)
-                {
-                    if(up == 1)
+                    if(setcount == 2)
                     {
-                        anumsec += 1;
-                        up = 0;
-                    }
-                    else if(down == 1)
-                    {
-                        anumsec -= 1;
-                        down = 0;
-                        if(anumsec <= 0)
+                        if(up == 1)
                         {
-                            anumsec = 59;
+                            anummin += 1;
+                            up = 0;
+                        }
+                        else if(down == 1)
+                        {
                             anummin -= 1;
+                            down = 0;
                             if(anummin < 0)
                             {
                                 anummin = 59;
-                                anumhour -= 1;
-                                if(anumhour < 1)
+                                if(anumhour == 1)
                                 {
                                     anumhour = 12;
-                                    if(aAP == 1)
+                                }
+                                else
+                                {
+                                anumhour -= 1;
+                                }
+                            }
+                        }
+                    }
+                    if(setcount == 3)
+                    {
+                        if(up == 1)
+                        {
+                            anumsec += 1;
+                            up = 0;
+                        }
+                        else if(down == 1)
+                        {
+                            anumsec -= 1;
+                            down = 0;
+                            if(anumsec <= 0)
+                            {
+                                anumsec = 59;
+                                anummin -= 1;
+                                if(anummin < 0)
+                                {
+                                    anummin = 59;
+                                    anumhour -= 1;
+                                    if(anumhour < 1)
                                     {
-                                        aAP == 0;
-                                    }
-                                    else if (aAP == 0)
-                                    {
-                                        aAP == 1;
+                                        anumhour = 12;
+                                        if(aAP == 1)
+                                        {
+                                            aAP == 0;
+                                        }
+                                        else if (aAP == 0)
+                                        {
+                                            aAP == 1;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                if( setcount == 4)
-                {
-                    setalarm = 0;
-                    setcount = 0;
-                }
-
-
-                if(anummin >= 60)
-                {
-                    anummin = 0;
-                    anumhour += 1; //update hours
-                }
-                if(anumsec > 60)
-                {
-                    anumsec = 0;
-                    anummin += 1;
-                }
-                if(anumhour < 12)
-                {
-                    if(aAP == 0)
+                    if( setcount == 4)
                     {
-                        if(anummin < 10 && anumhour < 10)
+                        setalarm = 0;
+                        setcount = 0;
+                    }
+
+
+                    if(anummin >= 60)
+                    {
+                        anummin = 0;
+                        anumhour += 1; //update hours
+                    }
+                    if(anumsec > 60)
+                    {
+                        anumsec = 0;
+                        anummin += 1;
+                    }
+                    if(anumhour < 12)
+                    {
+                        if(aAP == 0)
                         {
-                            if(anumsec < 10)
+                            if(anummin < 10 && anumhour < 10)
                             {
-                                sprintf(alarmtime,"0%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"0%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"0%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                }
                             }
-                            else
+                            else if(anumhour < 10)
                             {
-                                sprintf(alarmtime,"0%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"0%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"0%d:%d:%d AM", anumhour, anummin, anumsec);
+                                }
+                            }
+                            else if(anumhour > 9 && anummin < 10)
+                            {
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                }
+                            }
+                            else if(anumhour > 9)
+                            {
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
+                                }
                             }
                         }
-                        else if(anumhour < 10)
+                        else if(aAP == 1)
                         {
-                            if(anumsec < 10)
+                            if(anummin < 10 && anumhour < 10)
                             {
-                                sprintf(alarmtime,"0%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"0%d:0%d:0%d PM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"0%d:0%d:%d PM", anumhour, anummin, anumsec);
+                                }
                             }
-                            else
+                            else if(anumhour < 10)
                             {
-                                sprintf(alarmtime,"0%d:%d:%d AM", anumhour, anummin, anumsec);
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"0%d:%d:0%d PM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"0%d:%d:%d PM", anumhour, anummin, anumsec);
+                                }
+                            }
+                            else if(anumhour > 9 && anummin < 10)
+                            {
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec);
+                                }
+                            }
+                            else if(anumhour > 9)
+                            {
+                                if(anumsec < 10)
+                                {
+                                    sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec);
+                                }
+                                else
+                                {
+                                    sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
+                                }
                             }
                         }
-                        else if(anumhour > 9 && anummin < 10)
+                    }
+                    else if(anumhour == 12 && aAP == 1)
+                    {
+                        if(anummin < 10)
                         {
                             if(anumsec < 10)
                             {
@@ -488,7 +629,7 @@ void main(void)
                                 sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec);
                             }
                         }
-                        else if(anumhour > 9)
+                        else
                         {
                             if(anumsec < 10)
                             {
@@ -500,31 +641,9 @@ void main(void)
                             }
                         }
                     }
-                    else if(aAP == 1)
+                    else if(anumhour == 12 && aAP == 0)
                     {
-                        if(anummin < 10 && anumhour < 10)
-                        {
-                            if(anumsec < 10)
-                            {
-                                sprintf(alarmtime,"0%d:0%d:0%d PM", anumhour, anummin, anumsec);
-                            }
-                            else
-                            {
-                                sprintf(alarmtime,"0%d:0%d:%d PM", anumhour, anummin, anumsec);
-                            }
-                        }
-                        else if(anumhour < 10)
-                        {
-                            if(anumsec < 10)
-                            {
-                                sprintf(alarmtime,"0%d:%d:0%d PM", anumhour, anummin, anumsec);
-                            }
-                            else
-                            {
-                                sprintf(alarmtime,"0%d:%d:%d PM", anumhour, anummin, anumsec);
-                            }
-                        }
-                        else if(anumhour > 9 && anummin < 10)
+                        if(anummin < 10)
                         {
                             if(anumsec < 10)
                             {
@@ -535,7 +654,7 @@ void main(void)
                                 sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec);
                             }
                         }
-                        else if(anumhour > 9)
+                        else
                         {
                             if(anumsec < 10)
                             {
@@ -547,71 +666,18 @@ void main(void)
                             }
                         }
                     }
-                }
-                else if(anumhour == 12 && aAP == 1)
-                {
-                    if(anummin < 10)
-                    {
-                        if(anumsec < 10)
-                        {
-                            sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec);
-                        }
-                        else
-                        {
-                            sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec);
-                        }
-                    }
-                    else
-                    {
-                        if(anumsec < 10)
-                        {
-                            sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec);
-                        }
-                        else
-                        {
-                            sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
-                        }
-                    }
-                }
-                else if(anumhour == 12 && aAP == 0)
-                {
-                    if(anummin < 10)
-                    {
-                        if(anumsec < 10)
-                        {
-                            sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec);
-                        }
-                        else
-                        {
-                            sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec);
-                        }
-                    }
-                    else
-                    {
-                        if(anumsec < 10)
-                        {
-                            sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec);
-                        }
-                        else
-                        {
-                            sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
-                        }
-                    }
-                }
 
 
-            }
-            else
-            {
+                }
+                if(numsec >= 60)
+                {
+                    numsec = 0;
+                    nummin += 1;
+                }
                 if(nummin >= 60)
                 {
                     nummin = 0;
                     numhour += 1; //update hours
-                }
-                if(numsec > 60)
-                {
-                    numsec = 0;
-                    nummin += 1;
                 }
                 if(numhour == 25)
                 {
@@ -626,51 +692,98 @@ void main(void)
 
                 if(numhour < 12)
                 {
-                    if(nummin < 10)
+                    if(AP == 0)
                     {
-                        if(numsec < 10)
+                        if(nummin < 10 && numhour < 10)
                         {
-                            sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec);
+                            }
                         }
-                        else
+                        else if(numhour < 10)
                         {
-                            sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"0%d:%d:0%d AM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"0%d:%d:%d AM", numhour, nummin, numsec);
+                            }
+                        }
+                        else if(numhour > 9 && nummin < 10)
+                        {
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec);
+                            }
+                        }
+                        else if(numhour > 9)
+                        {
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                            }
                         }
                     }
-                    else
+                    else if(AP == 1)
                     {
-                        if(numsec < 10)
+                        if(nummin < 10 && numhour < 10)
                         {
-                            sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"0%d:0%d:0%d PM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"0%d:0%d:%d PM", numhour, nummin, numsec);
+                            }
                         }
-                        else
+                        else if(numhour < 10)
                         {
-                            sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"0%d:%d:0%d PM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"0%d:%d:%d PM", numhour, nummin, numsec);
+                            }
                         }
-                    }
-                }
-                else if(numhour > 12)
-                {
-                    if(nummin < 10)
-                    {
-                        if(numsec < 10)
+                        else if(numhour > 9 && nummin < 10)
                         {
-                            sprintf(time,"0%d:0%d:0%d PM", (numhour - 12), nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec);
+                            }
                         }
-                        else
+                        else if(numhour > 9)
                         {
-                            sprintf(time,"0%d:0%d:%d PM", (numhour - 12), nummin, numsec);
-                        }
-                    }
-                    else
-                    {
-                        if(numsec < 10)
-                        {
-                            sprintf(time,"%d:%d:0%d PM", (numhour - 12), nummin, numsec);
-                        }
-                        else
-                        {
-                            sprintf(time,"%d:%d:%d PM", (numhour - 12), nummin, numsec);
+                            if(numsec < 10)
+                            {
+                                sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec);
+                            }
+                            else
+                            {
+                                sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec);
+                            }
                         }
                     }
                 }
@@ -733,10 +846,34 @@ void main(void)
                 LCD_data(time[i]);
             }
 
-            sprintf(alarm, "Alarm: OFF   ");
+            if(on == 1 && settime == 0)
+            {
+                up = 0;
+                sprintf(alarm,"Alarm ON ");
+                length = strlen(alarm);
+                if((abs(anummin - nummin) <= 5) && LEDcount > 3)
+                {
+                    printf("up 1\n");
+                    TIMER_A0->CCR[1] += 640;
+                    TIMER_A0->CCR[2] += 640;
+                    LEDcount = 0;
+                }
+                if(anummin == nummin && anumsec == numsec && anumhour == numhour)
+                {
+                    on = 0;
+                    //SetupTimer32s();//Initializes Timer32_1 as a non-interrupt timer and Timer32_2 as a interrupt timers.  Also initializes TimerA and P2.4 for music generation.
+                }
+
+            }
+            else if(on == 0)
+            {
+                sprintf(alarm, "Alarm OFF");
+                length = strlen(alarm);
+            }
+
 
             LCD_command(0xC0);
-            for(i = 0; i < 13; i++)
+            for(i = 0; i < length; i++)
             {
                 LCD_data(alarm[i]);
             }
@@ -778,6 +915,7 @@ void main(void)
             }
             while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
             TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
+            LEDcount += 1;
             }
     }
 }
@@ -817,6 +955,7 @@ void PORT6_IRQHandler(void)
     else if(status & BIT6)              //Button for ON/OFF/Up
     {
         up = 1;
+        on = 1;
     }
     else if(status & BIT7)              //Button for SNOOZE/DOWN
     {
@@ -824,5 +963,47 @@ void PORT6_IRQHandler(void)
     }
 
     P6->IFG = 0;                        //Clear interrupt flags
+}
+/*-------------------------------------------------------------------------------------------------------------------------------
+ *
+ * void T32_INT2_IRQHandler()
+ *
+ * Interrupt Handler for Timer 2.  The name of this function is set in startup_msp432p401r_ccs.c
+ *
+ * This handler clears the status of the interrupt for Timer32_2
+ *
+ * Sets up the next note to play in sequence and loads it into TimerA for play back at that frequency.
+ * Enables a new Timer32 value to interrupt after the note is complete.
+ *
+-------------------------------------------------------------------------------------------------------------------------------*/
+
+void T32_INT2_IRQHandler()
+{
+    TIMER32_2->INTCLR = 1;                                      //Clear interrupt flag so it does not interrupt again immediately.
+    if(breath) {                                                //Provides separation between notes
+        TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
+        TIMER_A0->CCR[4] = 0;
+        TIMER_A0->CCR[2] = 0;
+        TIMER32_2->LOAD = BREATH_TIME;                          //Load in breath time to interrupt again
+        breath = 0;                                             //Next Timer32 interrupt is no longer a breath, but is a note
+    }
+    else {                                                      //If not a breath (a note)
+        TIMER32_2->LOAD = music_note_sequence[note][1] - 1;     //Load into interrupt count down the length of this note
+        if(music_note_sequence[note][0] == REST) {              //If note is actually a rest, load in nothing to TimerA
+            TIMER_A0->CCR[0] = 0;
+            TIMER_A0->CCR[4] = 0;
+            TIMER_A0->CCR[2] = 0;
+        }
+        else {
+            TIMER_A0->CCR[0] = 3000000 / music_note_sequence[note][0];  //Math in an interrupt is bad behavior, but shows how things are happening.  This takes our clock and divides by the frequency of this note to get the period.
+            TIMER_A0->CCR[4] = 1500000 / music_note_sequence[note][0];  //50% duty cycle
+            TIMER_A0->CCR[2] = TIMER_A0->CCR[0];                        //Had this in here for fun with interrupts.  Not used right now
+        }
+        note = note + 1;                                                //Next note
+        if(note >= MAX_NOTE) {                                          //Go back to the beginning if at the end
+            note = 0;
+        }
+        breath = 1;                                             //Next time through should be a breath for separation.
+    }
 }
 
