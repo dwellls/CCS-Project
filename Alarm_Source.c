@@ -59,47 +59,6 @@ void BUTTONseconds(void)
 }
 
 /*
- * This is the Interrupt handler for the Port 6 interrupts
- * The pins for interrupt on port 6 are 0, 1, 4, 5, 6
- */
-void PORT6_IRQHandler(void)
-{
-
-    int status;               //Read status of Port 6
-
-    SysTick_delay(1);
-
-    //Small delay to help debounce
-    status = P6->IFG;
-    if(status & BIT0)              //Button press for 1:1 real time to second
-    {
-
-    }
-    else if(status & BIT1)              //Button press for 1 second real: 1 minute clock
-    {
-
-    }
-    else if(status & BIT4)              //Button for set time
-    {
-
-    }
-    else if(status & BIT5)              //Button for set alarm
-    {
-
-    }
-    else if(status & BIT6)              //Button for ON/OFF/Up
-    {
-
-    }
-    else if(status & BIT6)              //Button for SNOOZE/DOWN
-    {
-
-    }
-
-    P6->IFG = 0;                        //Clear interrupt flags
-}
-
-/*
  * This function is usedd to initialize the LCD screen
  * LCD is in port 4
  */
@@ -159,4 +118,105 @@ void LCD_data(unsigned char data)
     LCD_nibble_write(data & 0xF0, RS);    /* upper nibble first */
     LCD_nibble_write(data << 4, RS);      /* then lower nibble  */
     SysTick_delay(1);
+}
+
+/*
+ * This function uses ADC to read the temperature from the LM35
+ */
+
+void ADC14_init(void)
+{
+    ADC14->CTL0 &=~ ADC14_CTL0_ENC;         //Disable ADC converter during initialization
+    ADC14->CTL0 |=  0x04200210;             //S/H pulse mode, SMCLK, 16 sample clocks
+    ADC14->CTL1  =  0x00000030;             //14-bit resolution
+    ADC14->CTL1 |=  0x00000000;             //Convert for mem0 register
+    ADC14->MCTL[0] = 0x00000001;            //ADC14INCHx = 0 for mem[0]
+    ADC14->CTL0 |=  ADC14_CTL0_ENC;         //Enable ADC14ENC, Starts the ADC after confg.
+ }
+
+/*
+ * This function initializes the port for temp sensor
+ */
+
+void PortADC_init(void)
+{
+    P5->SEL0 |= BIT4;       //Select ADC14 on P5.5
+    P5->SEL1 |= BIT4;
+}
+
+/*
+ * This is the systic interrupt used to go with the temperature sensor
+ */
+
+void SysTick_init_interrupt(void)
+{
+    SysTick->CTRL=0;                //Sisable SysTick during step
+    SysTick->LOAD=1500000;          //Reload value for 0.5 sec interrupts
+    SysTick->VAL=0;                 //Any write to current clears it
+    SysTick->CTRL=0x00000007;       //Enable SysTick, 3MHz, with interrupts
+}
+
+/*
+ * Handler for the systick interrupt
+ */
+void SysTick_Handler(void)
+{
+    timeout = 1;    //Set flag for timeout of SysTick, rest in main
+}
+/*-------------------------------------------------------------------------------------------------------------------------------
+ *
+ * void SetupTimer32s()
+ *
+ * Configures Timer32_1 as a single shot (runs once) timer that does not interrupt so the value must be monitored.
+ * Configures Timer32_2 as a single shot (runs once) timer that does interrupt and will run the interrupt handler 1 second
+ * after this function is called (and the master interrupt is enabled).
+ *
+-------------------------------------------------------------------------------------------------------------------------------*/
+
+void SetupTimer32s()
+{
+    TIMER32_2->CONTROL = 0b11100011;                //Sets timer 2 for Enabled, Periodic, With Interrupt, No Prescaler, 32 bit mode, One Shot Mode.  See 589 of the reference manual
+    NVIC_EnableIRQ(T32_INT2_IRQn);                  //Enable Timer32_2 interrupt.  Look at msp.h if you want to see what all these are called.
+    TIMER32_2->LOAD = 3000000 - 1;                  //Set to a count down of 1 second on 3 MHz clock
+
+    TIMER_A0->CCR[0] = 0;                           // Turn off timerA to start
+    TIMER_A0->CCTL[4] = 0b0000000011110100;         // Setup Timer A0_1 Reset/Set, Interrupt, No Output
+    TIMER_A0->CCR[4] = 0;                           // Turn off timerA to start
+    TIMER_A0->CCR[2] = 0;                           // Turn off timerA to start
+    TIMER_A0->CTL = 0b0000001000010100;             // Count Up mode using SMCLK, Clears, Clear Interrupt Flag
+
+    NVIC_EnableIRQ(TA0_N_IRQn);                     // Enable interrupts for CCTL1-6 (if on)
+
+    P2->SEL0 |= BIT7;                               // Setup the P2.4 to be an output for the song.  This should drive a sounder.
+    P2->SEL1 &= ~BIT7;
+    P2->DIR |= BIT7;
+
+}
+
+void green_LED_pins(void)
+{
+    P2 -> SEL0 &=~ BIT4; //sets GPIO
+    P2 -> SEL1 &=~ BIT4;
+    P2 -> DIR |= BIT4; //output
+    P2 -> OUT |= BIT4; //sets output
+}
+void green_LED_pins2(void)
+{
+    P2 -> SEL0 &=~ BIT5; //sets GPIO
+    P2 -> SEL1 &=~ BIT5;
+    P2 -> DIR |= BIT5; //output
+    P2 -> OUT |= BIT5; //sets output
+}
+
+void TA_init(void)
+{
+    TIMER_A0->CCR[0]  = 64000;           // PWM Period
+
+    TIMER_A0->CCR[1] = 0;
+    TIMER_A0->CCR[2] = 0;
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A0->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A0->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
+                        TIMER_A_CTL_MC_1|//Up mode count up
+                        TIMER_A_CTL_CLR;// clear TAR
 }
