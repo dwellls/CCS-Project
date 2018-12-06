@@ -4,7 +4,7 @@
 void main(void)
 {
 	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
-	
+	TA_init();
 	
 }
 
@@ -21,4 +21,43 @@ void green_LED_pins2(void)
     P2 -> SEL1 &=~ BIT5;
     P2 -> DIR |= BIT5; //output
     P2 -> OUT |= BIT5; //sets output
+}
+
+
+void TA_init(void)
+{
+    P2 -> SEL0 |= SERV;
+    P2 -> SEL1 &=~ SERV;
+    P2 -> DIR |= SERV;
+
+    TIMER_A0->CCR[0]  = 64000;           // PWM Period
+
+    TIMER_A0->CCR[1] = 2000;
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A0->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
+                        TIMER_A_CTL_MC_1|//Up mode count up
+                        TIMER_A_CTL_CLR;// clear TAR
+
+    P2 -> SEL0 |= MOTO;
+    P2 -> SEL1 &=~ MOTO;
+    P2 -> DIR |= MOTO;
+
+    TIMER_A0->CCR[0]  = 64000;           // PWM Period
+
+    TIMER_A0->CCR[2] = 0;
+    TIMER_A0->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A0->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
+                        TIMER_A_CTL_MC_1|//Up mode count up
+                        TIMER_A_CTL_CLR;// clear TAR
+    P2 -> SEL0 |= BIT6;
+    P2 -> SEL1 &=~ BIT6;
+    P2 -> DIR |= BIT6;
+
+    TIMER_A0->CCR[0]  = 64000;           // PWM Period
+
+    TIMER_A0->CCR[3] = 0;
+    TIMER_A0->CCTL[3] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A0->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
+                        TIMER_A_CTL_MC_1|//Up mode count up
+                        TIMER_A_CTL_CLR;// clear TAR
 }
