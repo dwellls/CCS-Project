@@ -29,15 +29,26 @@
 #include "Alarm_Header.h"
 #include "stdio.h"
 
+void backlight_set(void); //calculate duty cycle for backlight
+ static volatile uint16_t result2;
+
+ uint8_t storage_location = 0; // used in the interrupt to store new data
+ uint8_t read_location = 0; // used in the main application to read valid data that hasn't been read yet
 int dutycycle = 0;
 int LightCounter = 0;
 int wakeup_light = 0;
 int RT = 0;
 int settime;
+int status = 0;
+int astatus = 0;
+int flag = 1;
+int speakerflag = 1;
+int alarmflag = 1;
 int up = 0;
 int setcount = 0;
 int down = 0;
 int setalarm = 0;
+int snooze = 0;
 int on = 0;
 int length;
 int note = 0;       //The note in the music sequence we are on
@@ -102,10 +113,10 @@ float music_note_sequence[][2] = {  //Twinkle Twinkle
 };
 
 void main(void)
-{
-	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
+ {
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
-	//initialization function calls
+    //initialization function calls
     BUTTONseconds();
     SysTick_Initialize();
     ADC14_init();
@@ -115,22 +126,35 @@ void main(void)
     green_LED_pins();
     green_LED_pins2();
     TA_init();
+    setupSerial();
 
-	//Enabling interupts and the vectors
+    //Enabling interupts and the vectors
     NVIC->ISER[1] = 1 <<((PORT6_IRQn) & 31);    //Enable Port 6 interrupt on the NVIC
     __enable_interrupt ( );
     __enable_irq();
 
     //local variables
+    char string[100];
+    char sec[4];
+    char min[4];
+    char hour[5];
     int numsec = 0;
     int nummin =0;
     int numhour = 12;
     int anumsec = 0;
     int anummin = 0;
     int anumhour = 12;
+    char sendtime[34];
     int AP = 1;
     int LEDcount = 0;
     int aAP = 1;
+    P5->SEL0 |= BIT0; //set GPIO for backlight
+    P5->SEL1 |= BIT0;
+
+     //LCD backlight
+      P2->SEL0 |= BIT6;       //P2.6 selected TA0
+      P2->SEL1 &=~ BIT6;      //P2.6 selected TA0
+      P2->DIR |= BIT6;        //P2.6 set as output
     TIMER32_1->LOAD=3000000-1;
     TIMER32_1->CONTROL=0xC2;
 
@@ -138,16 +162,117 @@ void main(void)
 
     while(1)
     {
+        if(flag == 1)
+            {readInput(string);
+        if(string[0] != '\0')
+        {
+            if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'T')
+            {
+                hour[0] = string[8];
+                hour[1] = string[9];
+                min[0] = string[11];
+                min[1] = string[12];
+                sec[0] = string[14];
+                sec[1] = string[5];
+
+                numhour = atoi(hour);
+                nummin = atoi(min);
+                numsec = atoi(sec);
+
+                if(numhour > 12)
+                {
+                    numhour = numhour - 12;
+                    AP = 1;
+                }
+            }
+
+            /*else if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'A')
+            {
+                hour[0] = string[8];
+                hour[1] = string[9];
+                min[0] = string[11];
+                min[1] = string[12];
+                sec[0] = string[14];
+                sec[1] = string[5];
+
+                anumhour = atoi(hour);
+                anummin = atoi(min);
+                anumsec = atoi(sec);
+
+                if(anumhour > 12)
+                {
+                    anumhour = anumhour - 12;
+                    aAP = 1;
+                }
+
+                if(aAP == 0)
+                {
+                //sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
+                }
+                else
+                {
+                    //sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
+                }
+            }
+
+            else if(string[0] == 'R' && string[4] == 'T')
+            {
+                if(AP == 1) //Check if clock is PM
+                {
+                    if (numhour > 12) //current hour = 12
+                    {
+                    sprintf(sendtime, "%d:%02d:%02d", (numhour + 12), nummin, numsec);
+                    writeOutput(sendtime);
+                    writeOutput("\n");
+                    }
+                }
+                else
+                {
+                    sprintf(sendtime,"%d:%0d:0%d", numhour, nummin,numsec);
+                    writeOutput(sendtime);
+                    writeOutput(sendtime);
+                }
+            }
+
+            else if(string[0] == 'R' && string[4] == 'A')
+            {
+                if(aAP == 1) //Check if clock is PM
+                {
+                    if (anumhour > 12) //current hour = 12
+                    {
+                    sprintf(sendtime, "%d:%02d:%02d", (anumhour + 12), anummin, anumsec);
+                    writeOutput(sendtime);
+                    writeOutput("\n");
+                    }
+                }
+                else
+                {
+                    sprintf(sendtime,"%02d:%02d:%02d", anumhour, anummin, anumsec);
+                    writeOutput(sendtime);
+                    writeOutput(sendtime);
+                }
+            }*/
+
+            flag = 0;
+        }
+
+
+
             if(settime == 1)
             {
+
+
                 if(setcount == 1)
                 {
+                    LCD_command(0x80);
+                    LCD_data(" ");
+                    LCD_data(" ");
                     if(up == 1)
                     {
                         numhour += 1;
                         up = 0;
                         if(numhour == 13)
-                        {
+                          {
                             numhour = 1;
                             if(AP == 1)
                             {
@@ -179,6 +304,10 @@ void main(void)
                 }
                 if(setcount == 2)
                 {
+                    LCD_command(0x83);
+                    LCD_data(" ");
+                    LCD_data(" ");
+
                     if(up == 1)
                     {
                         nummin += 1;
@@ -204,6 +333,10 @@ void main(void)
                 }
                 if(setcount == 3)
                 {
+                    LCD_command(0x86);
+                    LCD_data(" ");
+                    LCD_data(" ");
+
                     if(up == 1)
                     {
                         numsec += 1;
@@ -226,11 +359,11 @@ void main(void)
                                     numhour = 12;
                                     if(AP == 1)
                                     {
-                                        AP == 0;
+                                        AP = 0;
                                     }
                                     else if (AP == 0)
                                     {
-                                        AP == 1;
+                                        AP = 1;
                                     }
                                 }
                             }
@@ -410,6 +543,10 @@ void main(void)
                 {
                     if(setcount == 1)
                     {
+                        LCD_command(0x90);
+                        LCD_data(" ");
+                        LCD_data(" ");
+
                         if(up == 1)
                         {
                             anumhour += 1;
@@ -447,6 +584,9 @@ void main(void)
                     }
                     if(setcount == 2)
                     {
+                        LCD_command(0x93);
+                        LCD_data(" ");
+                        LCD_data(" ");
                         if(up == 1)
                         {
                             anummin += 1;
@@ -472,6 +612,9 @@ void main(void)
                     }
                     if(setcount == 3)
                     {
+                        LCD_command(0x96);
+                        LCD_data(" ");
+                        LCD_data(" ");
                         if(up == 1)
                         {
                             anumsec += 1;
@@ -494,11 +637,11 @@ void main(void)
                                         anumhour = 12;
                                         if(aAP == 1)
                                         {
-                                            aAP == 0;
+                                            aAP = 0;
                                         }
                                         else if (aAP == 0)
                                         {
-                                            aAP == 1;
+                                            aAP = 1;
                                         }
                                     }
                                 }
@@ -849,29 +992,77 @@ void main(void)
                 LCD_data(time[i]);
             }
 
-            if(on == 1 && settime == 0)
+            if(on == 1 && settime == 0 && setalarm == 0)
             {
                 up = 0;
-                sprintf(alarm,"Alarm ON ");
+                astatus = 1;
+                sprintf(alarm,"Alarm ON    ");
                 length = strlen(alarm);
-                if((abs(anummin - nummin) <= 5) && LEDcount > 3)
+                if(aAP == AP)
                 {
-                    printf("up 1\n");
-                    TIMER_A0->CCR[1] += 640;
-                    TIMER_A0->CCR[2] += 640;
-                    LEDcount = 0;
+                    if(numhour == anumhour)
+                    {
+                        if((anummin - nummin) == 5)
+                        {
+                            wakeup_light = 1;
+                            speakerflag = 0;
+                            SetupTimer32s();//Initializes Timer32_1 as a non-interrupt timer and Timer32_2 as a interrupt timers.  Also initializes TimerA and P2.4 for music generation.
+                        }
+                    }
                 }
-                if(anummin == nummin && anumsec == numsec && anumhour == numhour)
+                else
                 {
-                    on = 0;
-                    //SetupTimer32s();//Initializes Timer32_1 as a non-interrupt timer and Timer32_2 as a interrupt timers.  Also initializes TimerA and P2.4 for music generation.
+                    if(abs(anumhour - numhour) == 1)
+                    {
+                        if(abs(anummin - nummin) == 55)
+                        {
+                            wakeup_light = 1;
+                            speakerflag = 0;
+                            SetupTimer32s();//Initializes Timer32_1 as a non-interrupt timer and Timer32_2 as a interrupt timers.  Also initializes TimerA and P2.4 for music generation.
+                        }
+                    }
+                }
+                if(!(strcmp(time, alarmtime)))
+                {
+                    snooze = 0;
+                    speakerflag = 0;
+                    NVIC_DisableIRQ(T32_INT2_IRQn);
+                    TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
+                    TIMER_A0->CCR[4] = 0;
+                    TIMER_A0->CCR[2] = 0;
+                    TIMER32_2->LOAD = BREATH_TIME;
+                    TIMER32_2->LOAD = music_note_sequence[note][1] - 1;
                 }
 
             }
             else if(on == 0)
             {
-                sprintf(alarm, "Alarm OFF");
+                snooze = 0;
+                sprintf(alarm, "Alarm OFF   ");
                 length = strlen(alarm);
+                astatus = 0;
+                alarmflag = 0;
+
+                TIMER_A2->CCR[1] = 0;      //Initial duty cycle
+                TIMER_A2->CCR[2] = 0;     //Initial duty cycle
+                speakerflag = 1;
+
+                TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
+                TIMER_A0->CCR[4] = 0;
+                TIMER_A0->CCR[2] = 0;
+                TIMER32_2->LOAD = BREATH_TIME;
+
+
+
+            }
+
+            if( snooze == 1)
+            {
+                anummin += 10;
+                sprintf(alarm, "Alarm SNOOZE");
+                length = strlen(alarm);
+
+
             }
 
 
@@ -919,29 +1110,32 @@ void main(void)
             while((TIMER32_1->RIS & 1) == 0); /* wait until the RAW_IFG is set */
             TIMER32_1->INTCLR = 0;  /* clear raw interrupt flag */
             LEDcount += 1;
-	    
-		    if (wakeup_light==1) //call wakeup light when timer is 5 minutes to alarm
-	    		{
-		    LightCounter++;
-		    
-		    if (LightCounter == 3 && dutycycle <= 1000)
-		    {
-			 dutycycle += 10;
-			 TIMER_A2->CCR[1] = dutycycle;      //Initial duty cycle
-			 TIMER_A2->CCR[2] = dutycyle;     //Initial duty cycle
-			 
-			 LightCouter = 0;   
-		    }
-		    
-		    //insert flag off button when pressed then the LEDs turn off and the sound off
-	  	  }
-	    }
-	    
-	    
+
+            if (wakeup_light==1) //call wakeup light when timer is 5 minutes to alarm
+                {
+            LightCounter += 1;
+
+            if (LightCounter == 3 && dutycycle <= 1000)
+            {
+             dutycycle += 10;
+             TIMER_A2->CCR[1] = dutycycle;      //Initial duty cycle
+             TIMER_A2->CCR[2] = dutycycle;     //Initial duty cycle
+
+             LightCounter = 0;
+             wakeup_light = 0;
+            }
+
+
+            //insert flag off button when pressed then the LEDs turn off and the sound off
+          }
+        }
+
+
     }
 }
-	
-	
+ }
+
+
 
 
 /*
@@ -977,12 +1171,31 @@ void PORT6_IRQHandler(void)
     }
     else if(status & BIT6)              //Button for ON/OFF/Up
     {
+        if(settime == 1 || setalarm == 1)
+        {
         up = 1;
-        on = 1;
+        }
+        else{
+            if(astatus == 1)
+            {
+                on = 0;
+            }
+            else
+            {
+                on = 1;
+            }
+        }
     }
     else if(status & BIT7)              //Button for SNOOZE/DOWN
     {
+        if(settime == 1 || setalarm == 1)
+        {
         down = 1;
+        }
+        else
+        {
+            snooze = 1;
+        }
     }
 
     P6->IFG = 0;                        //Clear interrupt flags
@@ -1002,6 +1215,7 @@ void PORT6_IRQHandler(void)
 
 void T32_INT2_IRQHandler()
 {
+    if(speakerflag == 0){
     TIMER32_2->INTCLR = 1;                                      //Clear interrupt flag so it does not interrupt again immediately.
     if(breath) {                                                //Provides separation between notes
         TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
@@ -1027,6 +1241,123 @@ void T32_INT2_IRQHandler()
             note = 0;
         }
         breath = 1;                                             //Next time through should be a breath for separation.
+    }}
+    else
+    {
+        TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
+        TIMER_A0->CCR[4] = 0;
+        TIMER_A0->CCR[2] = 0;
+        TIMER32_2->LOAD = BREATH_TIME;                          //Load in breath time to interrupt again
+        breath = 0;
+    }
+}
+//Calculate the duty cycle for the LCD backlight
+void backlight_set(void)
+{
+    //Declare variables
+    static volatile uint16_t result;
+    float nADC, backlight;
+
+    ADC14->CTL0 |= 1;       //Start conversation
+    while(!ADC14->IFGR0);        //Wait for conversation to complete
+    result = ADC14->MEM[2];             //Get the value from the ADC
+    nADC = ((result * 5.0) / 16384);    //Calculate voltage
+
+    backlight = ((nADC * 1315) - 5574.8685);
+    TIMER_A0->CCR[1] = backlight;
+
+    ADC14->CTL0 &=~ 2;
+    ADC14->CTL0 |= 2;
+}
+void TA0_N_IRQHandler()
+{
+    TIMER_A0-> CCTL[4] &=~ TIMER_A_CCTLN_CCIFG;
+}
+
+/*----------------------------------------------------------------
+ * void EUSCIA0_IRQHandler(void)
+ *
+ * Description: Interrupt handler for serial communication on EUSCIA0.
+ * Stores the data in the RXBUF into the INPUT_BUFFER global character
+ * array for reading in the main application
+ * Inputs: None (Interrupt)
+ * Outputs: Data stored in the global INPUT_BUFFER. storage_location
+ * in the INPUT_BUFFER updated.
+----------------------------------------------------------------*/
+void EUSCIA0_IRQHandler(void)
+{
+    if (EUSCI_A0->IFG & BIT0)  // Interrupt on the receive line
+    {
+        INPUT_BUFFER[storage_location] = EUSCI_A0->RXBUF; // store the new piece of data at the present location in the buffer
+        EUSCI_A0->IFG &= ~BIT0; // Clear the interrupt flag right away in case new data is ready
+        storage_location++; // update to the next position in the buffer
+        if(storage_location == 100) // if the end of the buffer was reached, loop back to the start
+            storage_location = 0;
+
+        if(EUSCI_A0 -> RXBUF == '\0')
+        {
+            flag = 1;
+        }
+        else
+        {
+            flag = 0;
+        }
+    }
+}
+/*----------------------------------------------------------------
+ * void readInput(char *string)
+ *
+ * Description:  This is a function similar to most serial port
+ * functions like ReadLine.  Written as a demonstration and not
+ * production worthy due to limitations.
+ * One of the limitations is that it is BLOCKING which means
+ * it will wait in this function until there is a \n on the
+ * serial input.
+ * Another limitation is poor memory management.
+ * Inputs: Pointer to a string that will have information stored
+ * in it.
+ * Outputs: Places the serial data in the string that was passed
+ * to it.  Updates the global variables of locations in the
+ * INPUT_BUFFER that have been already read.
+----------------------------------------------------------------*/
+void readInput(char *string)
+{
+    int i = 0;  // Location in the char array "string" that is being written to
+
+    // One of the few do/while loops I've written, but need to read a character before checking to see if a \n has been read
+    do
+    {
+        // If a new line hasn't been found yet, but we are caught up to what has been received, wait here for new data
+        while(read_location == storage_location && INPUT_BUFFER[read_location] != '\n');
+        string[i] = INPUT_BUFFER[read_location];  // Manual copy of valid character into "string"
+        INPUT_BUFFER[read_location] = '\0';
+        i++; // Increment the location in "string" for next piece of data
+        read_location++; // Increment location in INPUT_BUFFER that has been read
+        if(read_location == 100)  // If the end of INPUT_BUFFER has been reached, loop back to 0
+            read_location = 0;
+    }
+    while(string[i-1] != '\n'); // If a \n was just read, break out of the while loop
+
+    string[i-1] = '\0'; // Replace the \n with a \0 to end the string when returning this function
+}
+/*----------------------------------------------------------------
+ * void writeOutput(char *string)
+ *
+ * Description:  This is a function similar to most serial port
+ * functions like printf.  Written as a demonstration and not
+ * production worthy due to limitations.
+ * One limitation is poor memory management.
+ * Inputs: Pointer to a string that has a string to send to the serial.
+ * Outputs: Places the data on the serial output.
+----------------------------------------------------------------*/
+void writeOutput(char *string)
+{
+    int i = 0;  // Location in the char array "string" that is being written to
+
+    while(string[i] != '\0') {
+        EUSCI_A0->TXBUF = string[i];
+        i++;
+        while(!(EUSCI_A0->IFG & BIT1));
     }
 }
 
