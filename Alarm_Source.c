@@ -129,9 +129,8 @@ void ADC14_init(void)
     ADC14->CTL0 &=~ ADC14_CTL0_ENC;         //Disable ADC converter during initialization
     ADC14->CTL0 |=  0x04200210;             //S/H pulse mode, SMCLK, 16 sample clocks
     ADC14->CTL1  =  0x00000030;             //14-bit resolution
-    ADC14->CTL1 |=  0x00020000;;             //Convert for mem0 register
-    ADC14->MCTL[2] = 1;                     //ADC14INCHx = 1 for mem[1]
-    ADC14->MCTL[0] = 3;                     //ADC14INCHx = 0 for mem[0]
+    ADC14->CTL1 |=  0x00000000;             //Convert for mem0 register
+    ADC14->MCTL[0] = 0x00000001;            //ADC14INCHx = 0 for mem[0]
     ADC14->CTL0 |=  ADC14_CTL0_ENC;         //Enable ADC14ENC, Starts the ADC after confg.
  }
 
@@ -172,6 +171,7 @@ void SysTick_Handler(void)
  * Configures Timer32_2 as a single shot (runs once) timer that does interrupt and will run the interrupt handler 1 second
  * after this function is called (and the master interrupt is enabled).
  *
+ *Taken with help from prof Zuidema
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 void SetupTimer32s()
@@ -193,13 +193,12 @@ void SetupTimer32s()
     P2->DIR |= BIT7;
 
 }
-
 void green_LED_pins(void)
 {
     P5 -> SEL0 |= BIT6; //sets GPIO
     P5 -> SEL1 &=~ BIT6;
     P5 -> DIR |= BIT6; //output
-    
+
     TIMER_A2->CCR[0] = (1000 - 1);                  //PWM period
     TIMER_A2->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7;     //Reset/set
     TIMER_A2->CCR[1] = 0;                           //Initial duty cycle
@@ -213,7 +212,7 @@ void green_LED_pins2(void)
     P5 -> SEL0 |= BIT7; //sets GPIO
     P5 -> SEL1 &=~ BIT7;
     P5 -> DIR |= BIT7; //output
-    
+
     TIMER_A2->CCR[0] = (1000 - 1);                  //PWM period
     TIMER_A2->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7;     //Reset/set
     TIMER_A2->CCR[2] = 0;                           //Initial duty cycle
@@ -223,21 +222,57 @@ void green_LED_pins2(void)
                     TIMER_A_CTL_CLR;                //Clear TA0R Register
 }
 
-void wakeup_lights(void)
-{
-    
-    
-}
-
+//Timer A initialization for the LEDs
 void TA_init(void)
 {
-    TIMER_A0->CCR[0]  = 64000;           // PWM Period
-
-    TIMER_A0->CCR[1] = 0;
-    TIMER_A0->CCR[2] = 0;
-    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
-    TIMER_A0->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
-    TIMER_A0->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
+    TIMER_A2->CCR[1] = 0;
+    TIMER_A2->CCR[2] = 0;
+    TIMER_A2->CCTL[1] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A2->CCTL[2] = TIMER_A_CCTLN_OUTMOD_7; //Reset/set
+    TIMER_A2->CTL  = TIMER_A_CTL_TASSEL_2|//SMCLK
                         TIMER_A_CTL_MC_1|//Up mode count up
                         TIMER_A_CTL_CLR;// clear TAR
 }
+
+/*----------------------------------------------------------------
+ * void setupSerial()
+ * Sets up the serial port EUSCI_A0 as 115200 8E2 (8 bits, Even parity,
+ * two stops bit.)  Enables the interrupt so that received data will
+ * results in an interrupt.
+ * Description:
+ * Inputs: None
+ * Outputs: None
+----------------------------------------------------------------*/
+/*----------------------------------------------------------------
+ * void setupSerial()
+ * Sets up the serial port EUSCI_A0 as 115200 8E2 (8 bits, Even parity,
+ * two stops bit.)  Enables the interrupt so that received data will
+ * results in an interrupt.
+ * Description:
+ * Inputs: None
+ * Outputs: None
+----------------------------------------------------------------*/
+void setupSerial()
+{
+    P1->SEL0 |=  (BIT2 | BIT3); // P1.2 and P1.3 are EUSCI_A0 RX
+    P1->SEL1 &= ~(BIT2 | BIT3); // and TX respectively.
+
+    EUSCI_A0->CTLW0  = BIT0; // Disables EUSCI. Default configuration is 8N1
+    EUSCI_A0->CTLW0 |= BIT7; // Connects to SMCLK BIT[7:6] = 10
+    EUSCI_A0->CTLW0 |= (BIT(15)|BIT(14)|BIT(11));  //BIT15 = Parity, BIT14 = Even, BIT11 = Two Stop Bits
+    // Baud Rate Configuration
+    // 3000000/(16*115200) = 1.628  (3 MHz at 115200 bps is fast enough to turn on over sampling (UCOS = /16))
+    // UCOS16 = 1 (0ver sampling, /16 turned on)
+    // UCBR  = 1 (Whole portion of the divide)
+    // UCBRF = .628 * 16 = 10 (0x0A) (Remainder of the divide)
+    // UCBRS = 3000000/115200 remainder=0.04 -> 0x01 (look up table 22-4)
+    EUSCI_A0->BRW = 1;  // UCBR Value from above
+    EUSCI_A0->MCTLW = 0x01A1; //UCBRS (Bits 15-8) & UCBRF (Bits 7-4) & UCOS16 (Bit 0)
+
+    EUSCI_A0->CTLW0 &= ~BIT0;  // Enable EUSCI
+    EUSCI_A0->IFG &= ~BIT0;    // Clear interrupt
+    EUSCI_A0->IE |= BIT0;      // Enable interrupt
+    NVIC_EnableIRQ(EUSCIA0_IRQn);
+}
+
+
