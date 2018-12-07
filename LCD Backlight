@@ -1,0 +1,45 @@
+#include "msp.h"
+
+void backlight_set(void); //calculate duty cycle for backlight
+
+static volatile uint16_t result;
+
+void main(void)
+{
+	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
+  
+  P5->SEL0 |= BIT0; //set GPIO for backlight 
+  P5->SEL1 |= BIT0;
+	
+   //LCD backlight
+    P2->SEL0 |= BIT6;       //P2.6 selected TA0
+    P2->SEL1 &=~ BIT6;      //P2.6 selected TA0
+    P2->DIR |= BIT6;        //P2.6 set as output
+    
+    if(soundalarm == 0)            //Check if alarm should be off
+    {
+        backlight_set();
+        TIMER_A2->CCR[0] = 0;           //Clear period of speaker
+        TIMER_A2->CCR[1] = 0;           //Clear duty cycle
+    }
+}
+
+
+//Calculate the duty cycle for the LCD backlight
+void backlight_set(void)
+{
+    //Declare variables
+    static volatile uint16_t result;
+    float nADC, backlight;
+
+    ADC14->CTL0 |= 1;       //Start conversation
+    while(!ADC14->IFGR0);        //Wait for conversation to complete
+    result = ADC14->MEM[2];             //Get the value from the ADC
+    nADC = ((result * 5.0) / 16384);    //Calculate voltage
+
+    backlight = ((nADC * 1315) - 5574.8685);
+    TIMER_A0->CCR[1] = backlight;
+
+    ADC14->CTL0 &=~ 2;
+    ADC14->CTL0 |= 2;
+}
