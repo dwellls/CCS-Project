@@ -38,6 +38,9 @@ void green_LED_pins(void);
 void green_LED_pins2(void);
 void SetupTimer32s();
 void TA_init(void);
+void writeOutput(char *string); // write output charactrs to the serial port
+void readInput(char* string); // read input characters from INPUT_BUFFER that are valid
+void setupSerial(); // Sets up serial for use and enables interrupts
 
 
 //Variable
@@ -55,6 +58,9 @@ int j;
 char time[12];
 char alarm[16];
 char alarmtime[12];
+char INPUT_BUFFER[100];
+// initializing the starting position of used buffer and read buffer
+
 
 //macros
 #define RS BIT1
@@ -73,6 +79,8 @@ char alarmtime[12];
 #define BREATH_TIME 50000
 #define WHOLE 4000000
 #define MAX_NOTE 44 // How many notes are in the song below
+// Making a buffer of 100 characters for serial to store to incoming serial data
+
 
 
 #endif /* ALARM_HEADER_H_ */
