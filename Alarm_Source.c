@@ -129,7 +129,7 @@ void ADC14_init(void)
     ADC14->CTL0 &=~ ADC14_CTL0_ENC;         //Disable ADC converter during initialization
     ADC14->CTL0 |=  0x04200210;             //S/H pulse mode, SMCLK, 16 sample clocks
     ADC14->CTL1  =  0x00000030;             //14-bit resolution
-    ADC14->CTL1 |=  0x00000000;             //Convert for mem0 register
+    ADC14->CTL1 |=  0x00020000;;             //Convert for mem0 register
     ADC14->MCTL[2] = 1;                     //ADC14INCHx = 1 for mem[1]
     ADC14->MCTL[0] = 3;                     //ADC14INCHx = 0 for mem[0]
     ADC14->CTL0 |=  ADC14_CTL0_ENC;         //Enable ADC14ENC, Starts the ADC after confg.
