@@ -25,19 +25,19 @@
 
 //Function prototypes
 void BUTTONseconds(void);
-void SysTick_Initialize(void);
-void SysTick_delay(uint16_t delay);
-void ADC14_init(void);
-void PortADC_init(void);
-void SysTick_init_interrupt(void);
-void LCD_init(void);
-void LCD_nibble_write(unsigned char data, unsigned char control);
-void LCD_command(unsigned char command);
-void LCD_data(unsigned char data);
-void green_LED_pins(void);
-void green_LED_pins2(void);
-void SetupTimer32s();
-void TA_init(void);
+void SysTick_Initialize(void); //Systick init
+void SysTick_delay(uint16_t delay); //Systick 
+void ADC14_init(void); //ADC init
+void PortADC_init(void); //Port6 ADC init
+void SysTick_init_interrupt(void); //Systick INit
+void LCD_init(void); //LCD init
+void LCD_nibble_write(unsigned char data, unsigned char control); //Nibble send LCD
+void LCD_command(unsigned char command); //LCD commands
+void LCD_data(unsigned char data); //LCD write
+void green_LED_pins(void); //LED with timerA2 init
+void green_LED_pins2(void); //LED with timerA2 init
+void SetupTimer32s(); 
+void TA_init(void); //TimerA init
 void writeOutput(char *string); // write output charactrs to the serial port
 void readInput(char* string); // read input characters from INPUT_BUFFER that are valid
 void setupSerial(); // Sets up serial for use and enables interrupts
@@ -46,15 +46,15 @@ void setupSerial(); // Sets up serial for use and enables interrupts
 //Variable
 volatile uint32_t timeout;
 static volatile uint16_t result;
-float nADC;
-float temp_c;
-float temp_f;
-char temp[10];
-char second[60];
-char minute[60];
-char hour[60];
-int i;
-int j;
+float nADC; //ADC value
+float temp_c; //temp of celcius
+float temp_f; //temp of fahrenheit
+char temp[10]; 
+char second[60]; //seconds array
+char minute[60]; //minutes array
+char hour[60]; //hours array
+int i; //increment variable /flag
+int j; //increment varaible /flag
 char time[12];
 char alarm[16];
 char alarmtime[12];
@@ -62,10 +62,11 @@ char INPUT_BUFFER[100];
 // initializing the starting position of used buffer and read buffer
 
 
-//macros
+//macros for LCD
 #define RS BIT1
 #define RW BIT2
 #define EN BIT3
+//macros for speaker frequencies
 #define C4 261.63
 #define D4 293.66
 #define E4 329.63
