@@ -21,6 +21,9 @@
  *
  * Update 4: David and Danny 12/2/2018
  * start bringing it all together
+ *
+ * Update 5: David and Danny 12/7/2018
+ * uploaded entire master code & commented 
  */
 
 //Libraries included
@@ -34,22 +37,23 @@ void backlight_set(void); //calculate duty cycle for backlight
 
  uint8_t storage_location = 0; // used in the interrupt to store new data
  uint8_t read_location = 0; // used in the main application to read valid data that hasn't been read yet
-int dutycycle = 0;
-int LightCounter = 0;
-int wakeup_light = 0;
+int dutycycle = 0; //used for light increment
+int LightCounter = 0; //increment variable for every 3 seconds
+int wakeup_light = 0; //flag to turn on light wakeup
 int RT = 0;
-int settime;
+int settime; //set time 
 int status = 0;
 int astatus = 0;
+//various flags
 int flag = 1;
 int speakerflag = 1;
-int alarmflag = 1;
-int up = 0;
+int alarmflag = 1; 
+int up = 0; //up for timer & alarm
 int setcount = 0;
-int down = 0;
-int setalarm = 0;
-int snooze = 0;
-int on = 0;
+int down = 0; //down for timer & alarm
+int setalarm = 0; //set alarm
+int snooze = 0; //SNOOZE when speaker/lights are on
+int on = 0; //ON
 int length;
 int note = 0;       //The note in the music sequence we are on
 int breath = 0;     //Take a breath after each note.  This creates seperation
@@ -118,15 +122,15 @@ void main(void)
 
     //initialization function calls
     BUTTONseconds();
-    SysTick_Initialize();
-    ADC14_init();
-    PortADC_init();
-    SysTick_init_interrupt();
-    LCD_init();
-    green_LED_pins();
-    green_LED_pins2();
-    TA_init();
-    setupSerial();
+    SysTick_Initialize(); //SysTick init
+    ADC14_init(); //ADC init
+    PortADC_init(); //PortADC init
+    SysTick_init_interrupt(); //SysTick init interrupt
+    LCD_init(); //LCD init
+    green_LED_pins(); //LED init that also init Timer_A2
+    green_LED_pins2(); //LED init that also init Timer_A2
+    TA_init(); //TimerA init
+    setupSerial(); //serial monitor
 
     //Enabling interupts and the vectors
     NVIC->ISER[1] = 1 <<((PORT6_IRQn) & 31);    //Enable Port 6 interrupt on the NVIC
@@ -135,19 +139,19 @@ void main(void)
 
     //local variables
     char string[100];
-    char sec[4];
-    char min[4];
-    char hour[5];
-    int numsec = 0;
-    int nummin =0;
-    int numhour = 12;
-    int anumsec = 0;
-    int anummin = 0;
-    int anumhour = 12;
+    char sec[4]; //array sec
+    char min[4]; //array min
+    char hour[5]; //array hour
+    int numsec = 0; //sec
+    int nummin =0; //min
+    int numhour = 12; //hour
+    int anumsec = 0; //compare sec
+    int anummin = 0; //compare min
+    int anumhour = 12; //compare hour
     char sendtime[34];
-    int AP = 1;
+    int AP = 1; //flag for AM PM
     int LEDcount = 0;
-    int aAP = 1;
+    int aAP = 1; //flag for AM PM
     P5->SEL0 |= BIT0; //set GPIO for backlight
     P5->SEL1 |= BIT0;
 
@@ -162,92 +166,92 @@ void main(void)
 
     while(1)
     {
-        if(flag == 1)
+        if(flag == 1) //UART 
             {readInput(string);
         if(string[0] != '\0')
         {
-            if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'T')
+            if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'T') //determines if SETTIME for UART
             {
-                hour[0] = string[8];
+                hour[0] = string[8]; //sets time to strings
                 hour[1] = string[9];
                 min[0] = string[11];
                 min[1] = string[12];
                 sec[0] = string[14];
                 sec[1] = string[5];
 
-                numhour = atoi(hour);
+                numhour = atoi(hour); //sets arrays to integers
                 nummin = atoi(min);
                 numsec = atoi(sec);
 
-                if(numhour > 12)
+                if(numhour > 12) //AM or PM
                 {
                     numhour = numhour - 12;
-                    AP = 1;
+                    AP = 1; //flag for AM or PM
                 }
             }
 
-            /*else if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'A')
+            /*else if(string[0] == 'S' && string[1] == 'E' && string[2] == 'T' && string[3] == 'A') //determines if it's SETALARM
             {
-                hour[0] = string[8];
+                hour[0] = string[8]; //sets time to strings
                 hour[1] = string[9];
                 min[0] = string[11];
                 min[1] = string[12];
                 sec[0] = string[14];
                 sec[1] = string[5];
 
-                anumhour = atoi(hour);
+                anumhour = atoi(hour); //sets arrays to integers
                 anummin = atoi(min);
                 anumsec = atoi(sec);
 
-                if(anumhour > 12)
+                if(anumhour > 12) //AM or PM
                 {
-                    anumhour = anumhour - 12;
-                    aAP = 1;
+                    anumhour = anumhour - 12; 
+                    aAP = 1; //flag for AM or PM
                 }
 
-                if(aAP == 0)
+                if(aAP == 0) //AM or PM
                 {
-                //sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
+                //sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec); //send time in AM
                 }
                 else
                 {
-                    //sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
+                    //sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec); //send time in PM
                 }
             }
 
-            else if(string[0] == 'R' && string[4] == 'T')
+            else if(string[0] == 'R' && string[4] == 'T') //determines if READTIME for UART
             {
                 if(AP == 1) //Check if clock is PM
                 {
                     if (numhour > 12) //current hour = 12
                     {
-                    sprintf(sendtime, "%d:%02d:%02d", (numhour + 12), nummin, numsec);
+                    sprintf(sendtime, "%d:%02d:%02d", (numhour + 12), nummin, numsec); //grabs from serial monitor
                     writeOutput(sendtime);
                     writeOutput("\n");
                     }
                 }
                 else
                 {
-                    sprintf(sendtime,"%d:%0d:0%d", numhour, nummin,numsec);
+                    sprintf(sendtime,"%d:%0d:0%d", numhour, nummin,numsec); //grabs from serial monitor
                     writeOutput(sendtime);
                     writeOutput(sendtime);
                 }
             }
 
-            else if(string[0] == 'R' && string[4] == 'A')
+            else if(string[0] == 'R' && string[4] == 'A') //determines if READALARM
             {
                 if(aAP == 1) //Check if clock is PM
                 {
                     if (anumhour > 12) //current hour = 12
                     {
-                    sprintf(sendtime, "%d:%02d:%02d", (anumhour + 12), anummin, anumsec);
+                    sprintf(sendtime, "%d:%02d:%02d", (anumhour + 12), anummin, anumsec); //grabs from serial monitor
                     writeOutput(sendtime);
                     writeOutput("\n");
                     }
                 }
                 else
                 {
-                    sprintf(sendtime,"%02d:%02d:%02d", anumhour, anummin, anumsec);
+                    sprintf(sendtime,"%02d:%02d:%02d", anumhour, anummin, anumsec); //grabs from serial monitor
                     writeOutput(sendtime);
                     writeOutput(sendtime);
                 }
@@ -258,23 +262,23 @@ void main(void)
 
 
 
-            if(settime == 1)
+            if(settime == 1) //set time button pushed
             {
 
 
-                if(setcount == 1)
+                if(setcount == 1) //sets to hours
                 {
-                    LCD_command(0x80);
+                    LCD_command(0x80); //writes to LCD on hour position
+                    LCD_data(" "); //blinks hour position
                     LCD_data(" ");
-                    LCD_data(" ");
-                    if(up == 1)
+                    if(up == 1) //increment hour
                     {
                         numhour += 1;
                         up = 0;
-                        if(numhour == 13)
+                        if(numhour == 13) //if hour goes over 12
                           {
                             numhour = 1;
-                            if(AP == 1)
+                            if(AP == 1) //flag for AM or PM, carries over from AM/PM
                             {
                                 AP = 0;
                             }
@@ -284,14 +288,14 @@ void main(void)
                             }
                         }
                     }
-                    else if(down == 1)
+                    else if(down == 1) //decrement hour 
                     {
                         numhour -= 1;
                         down = 0;
                         if(numhour <= 0)
                         {
                             numhour = 12;
-                            if(AP == 1)
+                            if(AP == 1) //flag for AM or PM, carries over from AM/PM
                             {
                                 AP = 0;
                             }
@@ -302,24 +306,24 @@ void main(void)
                         }
                     }
                 }
-                if(setcount == 2)
+                if(setcount == 2) //if timer is pressed again, goes to minutes
                 {
-                    LCD_command(0x83);
-                    LCD_data(" ");
+                    LCD_command(0x83); //finds position on LCD
+                    LCD_data(" "); //blinks LCD
                     LCD_data(" ");
 
-                    if(up == 1)
+                    if(up == 1) //increment minute
                     {
                         nummin += 1;
                         up = 0;
                     }
-                    else if(down == 1)
+                    else if(down == 1) //decrement minute
                     {
                         nummin -= 1;
                         down = 0;
                         if(nummin < 0)
                         {
-                            nummin = 59;
+                            nummin = 59; //min goes over 59, carries down
                             if(numhour == 1)
                             {
                                 numhour = 12;
@@ -331,35 +335,35 @@ void main(void)
                         }
                     }
                 }
-                if(setcount == 3)
+                if(setcount == 3) //goes to seconds
                 {
-                    LCD_command(0x86);
-                    LCD_data(" ");
+                    LCD_command(0x86); //writes on second position on LCD
+                    LCD_data(" "); //blinks second position
                     LCD_data(" ");
 
-                    if(up == 1)
+                    if(up == 1) //increment up
                     {
                         numsec += 1;
                         up = 0;
                     }
-                    else if(down == 1)
+                    else if(down == 1) //decrement 
                     {
-                        numsec -= 1;
+                        numsec -= 1; //goes down a second
                         down = 0;
                         if(numsec <= 0)
                         {
-                            numsec = 59;
+                            numsec = 59; //if 59 then carreis over
                             nummin -= 1;
                             if(nummin < 0)
                             {
-                                nummin = 59;
+                                nummin = 59; //repeated 
                                 numhour -= 1;
                                 if(numhour < 1)
                                 {
                                     numhour = 12;
-                                    if(AP == 1)
+                                    if(AP == 1) //read if AM or PM with hour
                                     {
-                                        AP = 0;
+                                        AP = 0; 
                                     }
                                     else if (AP == 0)
                                     {
@@ -370,14 +374,14 @@ void main(void)
                         }
                     }
                 }
-                if( setcount == 4)
+                if( setcount == 4) //confirms and sets in time
                 {
                     settime = 0;
                     setcount = 0;
                 }
 
 
-                if(nummin >= 60)
+                if(nummin >= 60) 
                 {
                     nummin = 0;
                     numhour += 1; //update hours
@@ -389,97 +393,97 @@ void main(void)
                 }
                 if(numhour < 12)
                 {
-                    if(AP == 0)
+                    if(AP == 0) // AM/PM flag
                     {
                         if(nummin < 10 && numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9 && nummin < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                     }
-                    else if(AP == 1)
+                    else if(AP == 1) //AM/PM flag
                     {
                         if(nummin < 10 && numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:0%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:0%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9 && nummin < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                     }
@@ -490,22 +494,22 @@ void main(void)
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                     else
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                 }
@@ -515,22 +519,22 @@ void main(void)
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                     else
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                 }
@@ -539,22 +543,22 @@ void main(void)
             }
             else
             {
-                if(setalarm == 1)
+                if(setalarm == 1) //sets alarm by pressing "Set Alarm" button
                 {
-                    if(setcount == 1)
+                    if(setcount == 1) //first goes to hour change
                     {
-                        LCD_command(0x90);
-                        LCD_data(" ");
+                        LCD_command(0x90); //finds position on LCD
+                        LCD_data(" "); //blinks 
                         LCD_data(" ");
 
-                        if(up == 1)
+                        if(up == 1) //increment up for hour
                         {
                             anumhour += 1;
                             up = 0;
-                            if(anumhour == 13)
+                            if(anumhour == 13) //hour go past 13 set back to 1
                             {
                                 anumhour = 1;
-                                if(aAP == 1)
+                                if(aAP == 1) //change AM/PM
                                 {
                                     aAP = 0;
                                 }
@@ -564,14 +568,14 @@ void main(void)
                                 }
                             }
                         }
-                        else if(down == 1)
+                        else if(down == 1) //increment down
                         {
                             anumhour -= 1;
                             down = 0;
                             if(anumhour <= 0)
                             {
                                 anumhour = 12;
-                                if(aAP == 1)
+                                if(aAP == 1) //change AM/PM
                                 {
                                     aAP = 0;
                                 }
@@ -582,23 +586,23 @@ void main(void)
                             }
                         }
                     }
-                    if(setcount == 2)
+                    if(setcount == 2) //goes to minutes 
                     {
-                        LCD_command(0x93);
+                        LCD_command(0x93); //finds position on lcd
+                        LCD_data(" "); //blinks
                         LCD_data(" ");
-                        LCD_data(" ");
-                        if(up == 1)
+                        if(up == 1) //increment up using button
                         {
                             anummin += 1;
                             up = 0;
                         }
-                        else if(down == 1)
+                        else if(down == 1) //increment down using button
                         {
                             anummin -= 1;
                             down = 0;
                             if(anummin < 0)
                             {
-                                anummin = 59;
+                                anummin = 59; //if 59 then go to hour
                                 if(anumhour == 1)
                                 {
                                     anumhour = 12;
@@ -610,32 +614,32 @@ void main(void)
                             }
                         }
                     }
-                    if(setcount == 3)
+                    if(setcount == 3) //switch to seconds 
                     {
-                        LCD_command(0x96);
+                        LCD_command(0x96); //find position on LCD
+                        LCD_data(" "); //blinks
                         LCD_data(" ");
-                        LCD_data(" ");
-                        if(up == 1)
+                        if(up == 1) //increment up
                         {
                             anumsec += 1;
                             up = 0;
                         }
-                        else if(down == 1)
+                        else if(down == 1) //increment down
                         {
                             anumsec -= 1;
                             down = 0;
                             if(anumsec <= 0)
                             {
-                                anumsec = 59;
+                                anumsec = 59; //if 59 seconds
                                 anummin -= 1;
                                 if(anummin < 0)
                                 {
                                     anummin = 59;
                                     anumhour -= 1;
-                                    if(anumhour < 1)
+                                    if(anumhour < 1) // if right at hour mark, go up or down
                                     {
                                         anumhour = 12;
-                                        if(aAP == 1)
+                                        if(aAP == 1) //AM/PM flag
                                         {
                                             aAP = 0;
                                         }
@@ -648,7 +652,7 @@ void main(void)
                             }
                         }
                     }
-                    if( setcount == 4)
+                    if( setcount == 4) //save alarm time to LCD
                     {
                         setalarm = 0;
                         setcount = 0;
@@ -673,44 +677,44 @@ void main(void)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"0%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:0%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"0%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:0%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour < 10)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"0%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"0%d:%d:%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour > 9 && anummin < 10)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour > 9)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                         }
@@ -720,44 +724,44 @@ void main(void)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"0%d:0%d:0%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:0%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"0%d:0%d:%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:0%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour < 10)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"0%d:%d:0%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"0%d:%d:%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"0%d:%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour > 9 && anummin < 10)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                             else if(anumhour > 9)
                             {
                                 if(anumsec < 10)
                                 {
-                                    sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                                 else
                                 {
-                                    sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
+                                    sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                                 }
                             }
                         }
@@ -768,22 +772,22 @@ void main(void)
                         {
                             if(anumsec < 10)
                             {
-                                sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:0%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:0%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                         }
                         else
                         {
                             if(anumsec < 10)
                             {
-                                sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:%d:0%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:%d:%d AM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                         }
                     }
@@ -793,44 +797,44 @@ void main(void)
                         {
                             if(anumsec < 10)
                             {
-                                sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:0%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:0%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                         }
                         else
                         {
                             if(anumsec < 10)
                             {
-                                sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:%d:0%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec);
+                                sprintf(alarmtime,"%d:%d:%d PM", anumhour, anummin, anumsec); //saves the alarm string that gets sent to lcd
                             }
                         }
                     }
 
 
                 }
-                if(numsec >= 60)
+                if(numsec >= 60) //if sec goes past 60, set to 0 and update min
                 {
                     numsec = 0;
                     nummin += 1;
                 }
-                if(nummin >= 60)
+                if(nummin >= 60) //if min goes past 60 
                 {
                     nummin = 0;
                     numhour += 1; //update hours
                 }
-                if(numhour == 25)
+                if(numhour == 25) //if hour goes past 24 set to 1 and change AM/PM
                 {
                     numhour = 1;
                     AP =  1;
                 }
-                if(numhour == 13 && AP == 1)
+                if(numhour == 13 && AP == 1) //change AM/PM for hour increment, then hour back to 1
                 {
                     numhour = 1;
 
@@ -844,44 +848,44 @@ void main(void)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9 && nummin < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                     }
@@ -891,44 +895,44 @@ void main(void)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:0%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:0%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"0%d:%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"0%d:%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"0%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9 && nummin < 10)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                         else if(numhour > 9)
                         {
                             if(numsec < 10)
                             {
-                                sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                             else
                             {
-                                sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec);
+                                sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                             }
                         }
                     }
@@ -939,22 +943,22 @@ void main(void)
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                     else
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:0%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:%d AM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                 }
@@ -964,29 +968,29 @@ void main(void)
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:0%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                     else
                     {
                         if(numsec < 10)
                         {
-                            sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:0%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                         else
                         {
-                            sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec);
+                            sprintf(time,"%d:%d:%d PM", numhour, nummin, numsec); //saves the time string that gets sent to lcd
                         }
                     }
                 }
 
             }
 
-            LCD_command(0x80);
+            LCD_command(0x80); //writes to LCD
             for(i = 0; i < 11; i++)
             {
                 LCD_data(time[i]);
@@ -998,7 +1002,7 @@ void main(void)
                 astatus = 1;
                 sprintf(alarm,"Alarm ON    ");
                 length = strlen(alarm);
-                if(aAP == AP)
+                if(aAP == AP) 
                 {
                     if(numhour == anumhour)
                     {
@@ -1012,9 +1016,9 @@ void main(void)
                 }
                 else
                 {
-                    if(abs(anumhour - numhour) == 1)
+                    if(abs(anumhour - numhour) == 1) //absolute value used 
                     {
-                        if(abs(anummin - nummin) == 55)
+                        if(abs(anummin - nummin) == 55) 
                         {
                             wakeup_light = 1;
                             speakerflag = 0;
@@ -1022,10 +1026,10 @@ void main(void)
                         }
                     }
                 }
-                if(!(strcmp(time, alarmtime)))
+                if(!(strcmp(time, alarmtime))) //string compare the alarm time and time
                 {
-                    snooze = 0;
-                    speakerflag = 0;
+                    snooze = 0; //sets snooze to 0 
+                    speakerflag = 0; //turns off speaker 
                     NVIC_DisableIRQ(T32_INT2_IRQn);
                     TIMER_A0->CCR[0] = 0;                                   //Set output of TimerA to 0
                     TIMER_A0->CCR[4] = 0;
@@ -1038,9 +1042,9 @@ void main(void)
             else if(on == 0)
             {
                 snooze = 0;
-                sprintf(alarm, "Alarm OFF   ");
+                sprintf(alarm, "Alarm OFF   "); //turns off alarm
                 length = strlen(alarm);
-                astatus = 0;
+                astatus = 0; //deactivates flags 
                 alarmflag = 0;
 
                 TIMER_A2->CCR[1] = 0;      //Initial duty cycle
@@ -1056,23 +1060,23 @@ void main(void)
 
             }
 
-            if( snooze == 1)
+            if( snooze == 1) //snooze flag
             {
-                anummin += 10;
-                sprintf(alarm, "Alarm SNOOZE");
+                anummin += 10; //min increment for 10 after snooze is pressec
+                sprintf(alarm, "Alarm SNOOZE"); //save string
                 length = strlen(alarm);
 
 
             }
 
 
-            LCD_command(0xC0);
+            LCD_command(0xC0); //print alarm to lcd
             for(i = 0; i < length; i++)
             {
                 LCD_data(alarm[i]);
             }
 
-            LCD_command(0x90);
+            LCD_command(0x90); //print alarm time to lcd
             for(i = 0; i < 11; i++)
             {
                 LCD_data(alarmtime[i]);
@@ -1084,12 +1088,12 @@ void main(void)
                 result = ADC14->MEM[0];             //Get the value from the ADC
                 nADC = ((result * 3.3) / 16384);
 
-                temp_c = nADC*100;
-                temp_f = ((temp_c * 9 / 5) + 32);
+                temp_c = nADC*100; //temp to celcius
+                temp_f = ((temp_c * 9 / 5) + 32); //temp from celcius to fahrenheit
 
-                sprintf(temp,"%.1f F",temp_f);
+                sprintf(temp,"%.1f F",temp_f); //save fahrenheit as string
 
-                LCD_command(0xD0);
+                LCD_command(0xD0); //print to lcd
 
                 for(i = 0; i<6; i++)
                 {
@@ -1121,12 +1125,10 @@ void main(void)
              TIMER_A2->CCR[1] = dutycycle;      //Initial duty cycle
              TIMER_A2->CCR[2] = dutycycle;     //Initial duty cycle
 
-             LightCounter = 0;
+             LightCounter = 0; 
              wakeup_light = 0;
             }
 
-
-            //insert flag off button when pressed then the LEDs turn off and the sound off
           }
         }
 
